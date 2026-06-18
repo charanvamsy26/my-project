@@ -59,10 +59,10 @@ jobs:
         working-directory: terraform/environments/${{ matrix.environment }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
@@ -90,10 +90,10 @@ jobs:
         environment: [dev, prod]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@v4
+        uses: terraform-linters/setup-tflint@v6
         with:
           tflint_version: v0.53.0
 
@@ -114,7 +114,7 @@ jobs:
       security-events: write  # required to upload SARIF to code scanning
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # tfsec and checkov are complementary: tfsec is fast/opinionated on AWS,
       # checkov has a much larger policy set and CIS mappings. We run both.
@@ -125,7 +125,7 @@ jobs:
           sarif_file: tfsec.sarif
 
       - name: Upload tfsec SARIF
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: tfsec.sarif
@@ -142,7 +142,7 @@ jobs:
           soft_fail: false
 
       - name: Upload Checkov SARIF
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: checkov.sarif
@@ -175,16 +175,16 @@ jobs:
         working-directory: terraform/environments/${{ matrix.environment }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
 
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
           role-session-name: gha-tf-plan-${{ matrix.environment }}-${{ github.run_id }}
@@ -221,7 +221,7 @@ jobs:
 
       - name: Post plan as PR comment
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           PLAN: ${{ steps.summary.outputs.plan }}
           ENVIRONMENT: ${{ matrix.environment }}

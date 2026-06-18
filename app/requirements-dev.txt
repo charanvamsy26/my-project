@@ -1,4 +1,4 @@
 # Development / CI dependencies. Installed on top of requirements.txt.
 -r requirements.txt
 
-pytest~=8.0   # test runner for tests/test_app.py
+pytest~=9.1   # test runner for tests/test_app.py

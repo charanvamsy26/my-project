@@ -4,7 +4,7 @@
 # lockfile (pip-compile) before promoting to prod if you need byte-for-byte
 # reproducible builds.
 
-flask~=3.0            # WSGI web framework serving the API routes
-gunicorn~=22.0        # production WSGI server (we do not use Flask's dev server)
-prometheus_client~=0.20  # /metrics exposition (Counter + Histogram)
+flask~=3.1            # WSGI web framework serving the API routes
+gunicorn~=26.0        # production WSGI server (we do not use Flask's dev server)
+prometheus_client~=0.25  # /metrics exposition (Counter + Histogram)
 psycopg2-binary~=2.9  # optional Postgres driver for the readiness DB probe

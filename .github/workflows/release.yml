@@ -53,7 +53,7 @@ jobs:
           generate_release_notes: true
           prerelease: ${{ steps.semver.outputs.prerelease }}
           body: |
-            ## my-project ${{ steps.semver.outputs.tag }}
+            ## eks-gitops-platform ${{ steps.semver.outputs.tag }}
 
             Container image (published by `app-ci` on main):
             `ghcr.io/charanvamsy26/demo-api:${{ steps.semver.outputs.tag }}`

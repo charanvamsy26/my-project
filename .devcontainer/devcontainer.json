@@ -1,5 +1,5 @@
 {
-  "name": "my-project local demo (kind + helm)",
+  "name": "eks-gitops-platform local demo (kind + helm)",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {

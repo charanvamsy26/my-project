@@ -1,12 +1,12 @@
 # Namespaces
 
-Declarative `Namespace` manifests for the **my-project** platform. They are the
+Declarative `Namespace` manifests for the **eks-gitops-platform** platform. They are the
 foundational layer everything else lands in, so they are typically applied first
 (by ArgoCD, as a sync-wave-0 / app-of-apps child, or via `kubectl apply` during
 bootstrap).
 
 Every namespace carries the standard project labels
-(`project=my-project`, `app.kubernetes.io/part-of=my-project`, `managed-by`,
+(`project=eks-gitops-platform`, `app.kubernetes.io/part-of=eks-gitops-platform`, `managed-by`,
 `environment`) plus two policy dimensions:
 
 * **Pod Security Admission (PSA)** — `pod-security.kubernetes.io/{enforce,audit,warn}`.
@@ -40,5 +40,5 @@ kubectl apply -f kubernetes/namespaces/
 In normal operation these are reconciled by ArgoCD rather than applied by hand.
 
 > Note: the `environment` label here defaults to `dev`. For a per-environment
-> cluster (my-project-dev vs my-project-prod) overlay or patch this value so it
+> cluster (eks-gitops-platform-dev vs eks-gitops-platform-prod) overlay or patch this value so it
 > matches the target cluster.

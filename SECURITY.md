@@ -1,6 +1,6 @@
 # Security Policy
 
-`my-project` is a reference platform that takes security seriously at every layer — IAM least privilege, encryption at rest and in transit, policy-as-code, image scanning, and a GitOps-only change path. For the full posture, see [`docs/security.md`](docs/security.md).
+`eks-gitops-platform` is a reference platform that takes security seriously at every layer — IAM least privilege, encryption at rest and in transit, policy-as-code, image scanning, and a GitOps-only change path. For the full posture, see [`docs/security.md`](docs/security.md).
 
 ## Supported versions
 

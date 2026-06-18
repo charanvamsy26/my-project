@@ -1,4 +1,4 @@
-# my-project
+# eks-gitops-platform
 
 > A production-grade reference platform: provision EKS on AWS with Terraform, deliver a containerized service through GitOps with ArgoCD and Helm, and operate it with SLO-driven observability and policy-as-code guardrails — all wired end to end.
 
@@ -9,7 +9,7 @@
 [![Observability](https://img.shields.io/badge/Observability-Prometheus%20%2B%20Grafana-E6522C?logo=prometheus&logoColor=white)](https://prometheus.io/)
 [![Policy](https://img.shields.io/badge/Policy-OPA%20Gatekeeper-7D4698?logo=openpolicyagent&logoColor=white)](https://open-policy-agent.github.io/gatekeeper/)
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?logo=githubactions&logoColor=white)](.github/workflows)
-[![demo-e2e](https://github.com/charanvamsy26/my-project/actions/workflows/demo-e2e.yml/badge.svg)](.github/workflows/demo-e2e.yml)
+[![demo-e2e](https://github.com/charanvamsy26/eks-gitops-platform/actions/workflows/demo-e2e.yml/badge.svg)](.github/workflows/demo-e2e.yml)
 [![DevSecOps](https://img.shields.io/badge/DevSecOps-tfsec%20%7C%20checkov%20%7C%20trivy%20%7C%20gitleaks-2C7A3D)](.github/workflows/security.yml)
 [![IaC](https://img.shields.io/badge/IaC-modular%20%26%20multi--env-623CE4)](terraform/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -33,7 +33,7 @@ graph LR
   GH -->|app-of-apps| Argo[ArgoCD]
 
   subgraph AWS["AWS - us-east-1 (multi-AZ a/b/c)"]
-    subgraph EKS["EKS my-project-* (k8s 1.30)"]
+    subgraph EKS["EKS eks-gitops-platform-* (k8s 1.30)"]
       Argo -->|sync waves| Obs[kube-prometheus-stack]
       Argo --> GK[OPA Gatekeeper]
       Argo --> LBC[AWS LB Controller]
@@ -60,7 +60,7 @@ OPA Gatekeeper, the SLO rules and dashboards — runs on a local [kind](https://
 cluster. One command brings it up, one command drives the reliability story end to end:
 
 ```bash
-git clone https://github.com/charanvamsy26/my-project && cd my-project
+git clone https://github.com/charanvamsy26/eks-gitops-platform && cd eks-gitops-platform
 make demo-up           # kind cluster + full stack (monitoring, gatekeeper, demo-api)
 make demo              # drive the SLO error-budget-burn + auto-remediation demo
 make demo-screenshots  # capture live Grafana panels into docs/img/
@@ -118,7 +118,7 @@ local-only), the burn walkthrough, and troubleshooting live in **[local/README.m
 ## Repository layout
 
 ```text
-my-project/
+eks-gitops-platform/
 ├── app/                          # demo-api Flask service + Dockerfile + tests
 │   ├── src/app.py                #   /healthz /readyz / /metrics on :8000
 │   ├── Dockerfile                #   multi-stage, non-root (uid 10001), gunicorn
@@ -152,7 +152,7 @@ my-project/
 │   ├── gatekeeper/               # templates + constraints + install
 │   └── conftest/                 # rego policies + tests + examples
 ├── local/                        # zero-cloud kind demo (no AWS)
-│   ├── kind/kind-config.yaml     #   my-project-local cluster (k8s 1.30)
+│   ├── kind/kind-config.yaml     #   eks-gitops-platform-local cluster (k8s 1.30)
 │   ├── helm-values/              #   local overlays (demo-api + kube-prometheus-stack)
 │   └── scripts/                  #   up.sh / demo.sh / capture-screenshots.sh / down.sh
 ├── .devcontainer/                # GitHub Codespaces: dind + kind + kubectl + helm
@@ -174,7 +174,7 @@ my-project/
 ```bash
 cd terraform/bootstrap
 terraform init && terraform apply
-# Note the printed bucket name: my-project-tfstate-<account_id>
+# Note the printed bucket name: eks-gitops-platform-tfstate-<account_id>
 ```
 
 **2. Wire the backend, then provision the dev environment**
@@ -184,8 +184,8 @@ cd ../environments/dev
 # Replace <account_id> in backend.tf with the value bootstrap printed
 cp terraform.tfvars.example terraform.tfvars   # adjust as needed
 terraform init
-terraform apply                                # VPC + EKS my-project-dev + RDS + IRSA + add-ons
-aws eks update-kubeconfig --name my-project-dev --region us-east-1
+terraform apply                                # VPC + EKS eks-gitops-platform-dev + RDS + IRSA + add-ons
+aws eks update-kubeconfig --name eks-gitops-platform-dev --region us-east-1
 ```
 
 **3. Install ArgoCD (pinned) and the AppProject**

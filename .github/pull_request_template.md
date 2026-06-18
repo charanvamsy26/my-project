@@ -1,5 +1,5 @@
 <!--
-Thanks for contributing to my-project. Keep PRs focused and small where possible.
+Thanks for contributing to eks-gitops-platform. Keep PRs focused and small where possible.
 The CI gates (terraform, app-ci, helm-ci, security) must be green before merge.
 -->
 
@@ -43,7 +43,7 @@ Closes #
 ## Checklist
 
 - [ ] Code follows repo conventions (snake_case TF vars, kebab-case k8s/files)
-- [ ] Resources have tags (`Environment`, `Project=my-project`, `ManagedBy=terraform`)
+- [ ] Resources have tags (`Environment`, `Project=eks-gitops-platform`, `ManagedBy=terraform`)
 - [ ] No secrets, no `:latest` image tags, requests/limits set where applicable
 - [ ] Docs/README updated for any new or changed behavior
 - [ ] All CI checks pass (lint, tests, security scans)

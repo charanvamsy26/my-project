@@ -1,7 +1,7 @@
 # Conftest policy: encryption-at-rest for AWS data stores in a Terraform plan.
 # Input: `terraform show -json` plan output.
 #
-# Enforces encryption for the data stores my-project provisions:
+# Enforces encryption for the data stores eks-gitops-platform provisions:
 #   - EBS volumes (aws_ebs_volume) + the launch-template/node defaults
 #   - RDS instances + clusters (storage_encrypted = true)
 #   - EKS secrets envelope encryption (cluster encryption_config present)
@@ -47,7 +47,7 @@ deny contains msg if {
 }
 
 # --- EKS secrets envelope encryption ---------------------------------------
-# my-project encrypts Kubernetes Secrets at rest with a KMS key via the cluster's
+# eks-gitops-platform encrypts Kubernetes Secrets at rest with a KMS key via the cluster's
 # encryption_config. Flag any EKS cluster created without one.
 deny contains msg if {
 	some r in changed_resources("aws_eks_cluster")

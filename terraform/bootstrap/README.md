@@ -1,12 +1,12 @@
 # bootstrap — Terraform remote state backend
 
-Creates the resources that every other Terraform root module in `my-project`
+Creates the resources that every other Terraform root module in `eks-gitops-platform`
 depends on for **remote state** and **state locking**:
 
 | Resource          | Name                                   | Purpose                          |
 |-------------------|----------------------------------------|----------------------------------|
-| S3 bucket         | `my-project-tfstate-<account_id>`      | Stores `.tfstate` per environment |
-| DynamoDB table    | `my-project-tf-locks`                   | Distributed lock (`LockID` hash)  |
+| S3 bucket         | `eks-gitops-platform-tfstate-<account_id>`      | Stores `.tfstate` per environment |
+| DynamoDB table    | `eks-gitops-platform-tf-locks`                   | Distributed lock (`LockID` hash)  |
 
 ## Why this stack uses local state
 
@@ -36,8 +36,8 @@ terraform plan
 terraform apply
 
 # capture these for the environment backend.tf files
-terraform output state_bucket_name   # my-project-tfstate-123456789012
-terraform output lock_table_name     # my-project-tf-locks
+terraform output state_bucket_name   # eks-gitops-platform-tfstate-123456789012
+terraform output lock_table_name     # eks-gitops-platform-tf-locks
 terraform output account_id          # 123456789012
 ```
 

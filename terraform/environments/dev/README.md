@@ -1,13 +1,13 @@
 # environment: dev
 
 The **dev** root module — a cost-optimized but realistic copy of the production
-platform. Cluster name: **`my-project-dev`**.
+platform. Cluster name: **`eks-gitops-platform-dev`**.
 
 ## What it provisions
 
 ```
 module.vpc            10.0.0.0/16, 3 AZs, SINGLE NAT gateway, flow logs
-module.eks            my-project-dev (K8s 1.30), t3.large nodes (2-4), IRSA, core addons
+module.eks            eks-gitops-platform-dev (K8s 1.30), t3.large nodes (2-4), IRSA, core addons
 module.*_irsa         least-privilege IRSA roles: LB controller, external-dns, ebs-csi, karpenter
 module.rds            Aurora PostgreSQL, single instance (db.t4g.medium), Secrets Manager
 module.eks_addons     AWS Load Balancer Controller + metrics-server (Helm)

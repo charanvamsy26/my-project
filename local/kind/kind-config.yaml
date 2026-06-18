@@ -1,13 +1,13 @@
 # =============================================================================
-# kind cluster config — my-project LOCAL demo (NO AWS)
+# kind cluster config — eks-gitops-platform LOCAL demo (NO AWS)
 # -----------------------------------------------------------------------------
 # Purpose : Stand up a throwaway, laptop-friendly Kubernetes cluster that mirrors
-#           the my-project platform (demo-api + kube-prometheus-stack + Gatekeeper)
+#           the eks-gitops-platform platform (demo-api + kube-prometheus-stack + Gatekeeper)
 #           without any cloud resources (no EKS, no ALB, no RDS, no EBS).
 #
 # Create  : kind create cluster --config local/kind/kind-config.yaml
-# Verify  : kubectl cluster-info --context kind-my-project-local
-# Delete  : kind delete cluster --name my-project-local
+# Verify  : kubectl cluster-info --context kind-eks-gitops-platform-local
+# Delete  : kind delete cluster --name eks-gitops-platform-local
 #
 # Access  : Services are reached with `kubectl port-forward` (see local/README),
 #           NOT a cloud LoadBalancer/ALB. That keeps this file minimal and avoids
@@ -17,9 +17,9 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 
-# Cluster name. Must be exactly `my-project-local` — scripts, the kube-context
-# (`kind-my-project-local`), and the README all reference this name.
-name: my-project-local
+# Cluster name. Must be exactly `eks-gitops-platform-local` — scripts, the kube-context
+# (`kind-eks-gitops-platform-local`), and the README all reference this name.
+name: eks-gitops-platform-local
 
 # -----------------------------------------------------------------------------
 # Nodes

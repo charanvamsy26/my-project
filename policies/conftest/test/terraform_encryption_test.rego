@@ -23,7 +23,7 @@ encrypted_plan := {"resource_changes": [
 		"type": "aws_eks_cluster",
 		"name": "this",
 		"change": {"actions": ["create"], "after": {
-			"name": "my-project-prod",
+			"name": "eks-gitops-platform-prod",
 			"encryption_config": [{"resources": ["secrets"], "provider": [{"key_arn": "arn:aws:kms:us-east-1:123456789012:key/abc"}]}],
 		}},
 	},
@@ -46,7 +46,7 @@ unencrypted_plan := {"resource_changes": [
 		"address": "module.eks.aws_eks_cluster.this",
 		"type": "aws_eks_cluster",
 		"name": "this",
-		"change": {"actions": ["create"], "after": {"name": "my-project-dev", "encryption_config": []}},
+		"change": {"actions": ["create"], "after": {"name": "eks-gitops-platform-dev", "encryption_config": []}},
 	},
 ]}
 

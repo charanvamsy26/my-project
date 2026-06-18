@@ -1,7 +1,7 @@
 # LOCAL Helm value overlays (`local/helm-values/`)
 
 These overlays adapt the **cloud** Helm values to a throwaway **kind** cluster
-(`my-project-local`, Kubernetes 1.30, **no AWS**). They are applied as an extra
+(`eks-gitops-platform-local`, Kubernetes 1.30, **no AWS**). They are applied as an extra
 `-f` on top of each chart's base/cloud values and only change what is hostile to
 a laptop: cloud-only integrations (ALB, IRSA, RDS, EBS) are turned off, while
 every control Gatekeeper enforces (registry, non-`:latest` tag, resource
@@ -106,7 +106,7 @@ helm upgrade --install kube-prometheus-stack \
 | `grafana.grafana.ini.server.root_url` | `https://grafana.example.com` | `http://localhost:3000` | Grafana is reached via port-forward, not the ALB. |
 | `grafana.grafana.ini.security.cookie_secure` | `true` | `false` | No HTTPS locally, so the login cookie must not require a secure context. |
 | resource requests/limits (Prometheus, Alertmanager, Grafana) | larger | smaller | Fit a laptop (e.g. Prometheus 500m/2Gi → 100m/400Mi). |
-| `prometheus.prometheusSpec.externalLabels` | `cluster: my-project`, `environment: dev` | `cluster: my-project-local`, `environment: local` | Tell laptop series apart from dev/prod. |
+| `prometheus.prometheusSpec.externalLabels` | `cluster: eks-gitops-platform`, `environment: dev` | `cluster: eks-gitops-platform-local`, `environment: local` | Tell laptop series apart from dev/prod. |
 | `kubeControllerManager` / `kubeScheduler` / `kubeEtcd` `.enabled` | `false` (EKS hides them) | `true` | On kind the control plane is a local container and **is** scrapeable. |
 | `defaultRules.rules.{etcd,kubeControllerManager,kubeScheduler}` | `false` | `true` | Re-enable the matching alert rules now that those targets exist. |
 

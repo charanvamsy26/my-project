@@ -1,5 +1,5 @@
 variable "cluster_name" {
-  description = "EKS cluster name (e.g. my-project-dev)."
+  description = "EKS cluster name (e.g. eks-gitops-platform-dev)."
   type        = string
 }
 

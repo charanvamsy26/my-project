@@ -10,10 +10,10 @@
 #   * A matrix over dev/prod surfaces drift between environments in a single PR.
 #
 # AWS OIDC role (must exist before this workflow can plan):
-#   Role name:  my-project-gha-terraform-plan
+#   Role name:  eks-gitops-platform-gha-terraform-plan
 #   Trust:      token.actions.githubusercontent.com (GitHub OIDC provider)
 #   Condition:  aud = sts.amazonaws.com
-#               sub = repo:charanvamsy26/my-project:*  (scope tighter per env if desired)
+#               sub = repo:charanvamsy26/eks-gitops-platform:*  (scope tighter per env if desired)
 #   Policy:     read-only-ish plan permissions + S3 state RW + DynamoDB lock RW.
 #   The role ARN is provided to the workflow via the repo variable AWS_PLAN_ROLE_ARN
 #   (Settings -> Secrets and variables -> Actions -> Variables). Documented in
@@ -247,7 +247,7 @@ jobs:
               '```',
               '</details>',
               '',
-              `_Cluster: \`my-project-${env}\` · Region: \`us-east-1\` · Run: ${context.runId}_`,
+              `_Cluster: \`eks-gitops-platform-${env}\` · Region: \`us-east-1\` · Run: ${context.runId}_`,
             ].join('\n');
 
             const { data: comments } = await github.rest.issues.listComments({

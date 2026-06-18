@@ -27,11 +27,11 @@ metadata:
   namespace: sre-tools
   labels:
     app.kubernetes.io/name: auto-remediation
-    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
     app.kubernetes.io/component: controller
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/version: "0.1.0"
-    project: my-project
+    project: eks-gitops-platform
 spec:
   replicas: 1
   # Recreate, not RollingUpdate: never run two controllers at once (avoids two
@@ -46,11 +46,11 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: auto-remediation
-        app.kubernetes.io/part-of: my-project
+        app.kubernetes.io/part-of: eks-gitops-platform
         app.kubernetes.io/component: controller
         app.kubernetes.io/managed-by: kustomize
         app.kubernetes.io/version: "0.1.0"
-        project: my-project
+        project: eks-gitops-platform
     spec:
       serviceAccountName: auto-remediation
       automountServiceAccountToken: true

@@ -62,7 +62,7 @@ kubectl get nodes -o wide \
 #    Security Admission profile that `demo` enforces.
 kubectl create namespace chaos-testing --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace chaos-testing \
-  app.kubernetes.io/part-of=my-project \
+  app.kubernetes.io/part-of=eks-gitops-platform \
   pod-security.kubernetes.io/enforce=privileged --overwrite
 
 # 2) Add the chart repo and pin the version.

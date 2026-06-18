@@ -19,15 +19,15 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "2"
   labels:
-    project: my-project
+    project: eks-gitops-platform
     managed-by: argocd
     component: workload
     environment: dev
 spec:
-  project: my-project
+  project: eks-gitops-platform
 
   source:
-    repoURL: https://github.com/charanvamsy26/my-project.git
+    repoURL: https://github.com/charanvamsy26/eks-gitops-platform.git
     targetRevision: main
     # Local Helm chart for the Flask service (image ghcr.io/charanvamsy26/demo-api:<tag>, port 8000,
     # /healthz /readyz / /metrics). Pinned image tags live in the values file — never :latest.

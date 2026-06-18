@@ -28,4 +28,4 @@ Initial public release of the production-grade EKS GitOps platform.
   and screenshot automation.
 - **Docs**: architecture, deployment, runbook, SLO and security docs, plus a project explainer PDF.
 
-[1.0.0]: https://github.com/charanvamsy26/my-project/releases/tag/v1.0.0
+[1.0.0]: https://github.com/charanvamsy26/eks-gitops-platform/releases/tag/v1.0.0

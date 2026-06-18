@@ -1,6 +1,6 @@
 # SRE incident runbook
 
-On-call reference for `my-project`. Each section maps an alert (from `observability/prometheus/rules/`) to **diagnosis** → **remediation**. Alerts carry a `runbook_url` annotation pointing here; alert names below match those rules exactly.
+On-call reference for `eks-gitops-platform`. Each section maps an alert (from `observability/prometheus/rules/`) to **diagnosis** → **remediation**. Alerts carry a `runbook_url` annotation pointing here; alert names below match those rules exactly.
 
 ## How to triage, fast
 

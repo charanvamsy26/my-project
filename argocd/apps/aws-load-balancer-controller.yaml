@@ -18,11 +18,11 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
   labels:
-    project: my-project
+    project: eks-gitops-platform
     managed-by: argocd
     component: ingress
 spec:
-  project: my-project
+  project: eks-gitops-platform
 
   source:
     repoURL: https://aws.github.io/eks-charts
@@ -34,7 +34,7 @@ spec:
       # facts (cluster name, region, VPC, IRSA role). Keeping them here makes the per-env wiring
       # obvious. Swap the placeholders, or template them, per environment.
       values: |
-        clusterName: my-project-dev          # CHANGE to my-project-prod for the prod env
+        clusterName: eks-gitops-platform-dev          # CHANGE to eks-gitops-platform-prod for the prod env
         region: us-east-1
         vpcId: <vpc-id>                       # from terraform output: vpc_id (per env)
         # The controller must not manage its own SA — IRSA role is created by Terraform.
@@ -43,7 +43,7 @@ spec:
           name: aws-load-balancer-controller
           annotations:
             # IRSA: bind the SA to the IAM role Terraform provisions for this controller.
-            eks.amazonaws.com/role-arn: arn:aws:iam::<account_id>:role/my-project-dev-aws-lb-controller
+            eks.amazonaws.com/role-arn: arn:aws:iam::<account_id>:role/eks-gitops-platform-dev-aws-lb-controller
         # Run >1 replica for availability; the controller leader-elects.
         replicaCount: 2
         # Security & resource defaults (no :latest, requests/limits set, non-root).

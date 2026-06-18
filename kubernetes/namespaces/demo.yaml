@@ -4,8 +4,8 @@ metadata:
   name: demo
   labels:
     # Standard project labels (SPEC).
-    app.kubernetes.io/part-of: my-project
-    project: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
+    project: eks-gitops-platform
     managed-by: argocd
     environment: dev
     # Pod Security Admission: enforce the "restricted" profile. demo-api is

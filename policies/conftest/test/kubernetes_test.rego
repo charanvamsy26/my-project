@@ -24,7 +24,7 @@ good_demo_api := {
 		"namespace": "demo",
 		"labels": {
 			"app.kubernetes.io/name": "demo-api",
-			"app.kubernetes.io/part-of": "my-project",
+			"app.kubernetes.io/part-of": "eks-gitops-platform",
 			"app.kubernetes.io/managed-by": "Helm",
 		},
 	},

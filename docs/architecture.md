@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes how `my-project` works end to end — from a developer's commit to a customer-serving HTTPS endpoint on AWS — and why each piece is shaped the way it is.
+This document describes how `eks-gitops-platform` works end to end — from a developer's commit to a customer-serving HTTPS endpoint on AWS — and why each piece is shaped the way it is.
 
 ## Design principles
 
@@ -14,7 +14,7 @@ This document describes how `my-project` works end to end — from a developer's
 
 ```mermaid
 graph TD
-  Dev["Developer"] -->|"git push / open PR"| GH["GitHub repo<br/>charanvamsy26/my-project"]
+  Dev["Developer"] -->|"git push / open PR"| GH["GitHub repo<br/>charanvamsy26/eks-gitops-platform"]
 
   subgraph CI["GitHub Actions (least-privilege, OIDC)"]
     direction TB
@@ -36,7 +36,7 @@ graph TD
     subgraph NET["VPC (public + private subnets, NAT)"]
       ALB["Application Load Balancer<br/>HTTP to HTTPS redirect, ACM cert"]
 
-      subgraph EKS["EKS cluster (my-project-dev / my-project-prod, k8s 1.30)"]
+      subgraph EKS["EKS cluster (eks-gitops-platform-dev / eks-gitops-platform-prod, k8s 1.30)"]
         direction TB
         ARGO -->|"wave 0"| OBS["kube-prometheus-stack<br/>Prometheus · Alertmanager · Grafana<br/>(ns: monitoring)"]
         ARGO -->|"wave 0"| GK["OPA Gatekeeper<br/>(ns: gatekeeper-system)"]
@@ -70,7 +70,7 @@ graph TD
 ## Component responsibilities
 
 ### Infrastructure — `terraform/`
-- **`bootstrap/`** creates the remote-state backend: a versioned, AES256-encrypted S3 bucket (`my-project-tfstate-<account_id>`) with all four public-access-block flags and a TLS-only bucket policy, plus a `PAY_PER_REQUEST` DynamoDB lock table (`my-project-tf-locks`) with point-in-time recovery.
+- **`bootstrap/`** creates the remote-state backend: a versioned, AES256-encrypted S3 bucket (`eks-gitops-platform-tfstate-<account_id>`) with all four public-access-block flags and a TLS-only bucket policy, plus a `PAY_PER_REQUEST` DynamoDB lock table (`eks-gitops-platform-tf-locks`) with point-in-time recovery.
 - **`modules/vpc`** — multi-AZ VPC across `us-east-1a/b/c` with public/private subnets and NAT (single in dev, per-AZ in prod).
 - **`modules/eks`** — EKS 1.30 with KMS envelope encryption of Kubernetes secrets (rotation on), full control-plane logging to CloudWatch, an IAM OIDC provider for IRSA, managed node groups on a least-privilege node role, core add-ons (vpc-cni / coredns / kube-proxy / ebs-csi), and Karpenter prerequisites (instance profile + SQS interruption queue + EventBridge rules).
 - **`modules/iam-irsa`** — a role factory scoping each trust policy to an exact `namespace:serviceaccount` subject (`StringEquals`, no wildcards), shipping least-privilege policies for the AWS Load Balancer Controller, external-dns, Karpenter, and ebs-csi.
@@ -83,7 +83,7 @@ graph TD
 - **`kubernetes/namespaces`** — `demo` under restricted Pod Security Admission; `gatekeeper-system` and `argocd` carry the Gatekeeper ignore annotation to avoid webhook self-deadlock.
 
 ### Delivery — `argocd/`
-- **`install/`** pins upstream ArgoCD (v2.13.2) via a kustomize remote base and defines the `my-project` AppProject (source/destination allow-lists, cluster-scoped resource whitelist, a Secret blacklist, and read-only / platform-admin RBAC roles).
+- **`install/`** pins upstream ArgoCD (v2.13.2) via a kustomize remote base and defines the `eks-gitops-platform` AppProject (source/destination allow-lists, cluster-scoped resource whitelist, a Secret blacklist, and read-only / platform-admin RBAC roles).
 - **`bootstrap/root-app.yaml`** is the single hand-applied Application (wave -1). It renders `argocd/apps/` and creates the four children, so adding a platform component becomes a one-file PR.
 - **Sync waves** enforce ordering (rationale below).
 
@@ -106,7 +106,7 @@ graph TD
 
 | Concern | dev | prod |
 | --- | --- | --- |
-| Cluster name | `my-project-dev` | `my-project-prod` |
+| Cluster name | `eks-gitops-platform-dev` | `eks-gitops-platform-prod` |
 | NAT | single | one per AZ |
 | Worker nodes | `t3.large` (2–4) | `m5.xlarge` (3–9) |
 | Aurora | single writer | multi-AZ writer + reader |
@@ -116,4 +116,4 @@ graph TD
 
 ## Shared constants
 
-Region `us-east-1`; project tag `my-project`; image `ghcr.io/charanvamsy26/demo-api`; service port `8000`; namespaces `demo` / `monitoring` / `gatekeeper-system` / `argocd`; Kubernetes `1.30`. Every component uses these identically, which is what lets the pieces interlock without glue code.
+Region `us-east-1`; project tag `eks-gitops-platform`; image `ghcr.io/charanvamsy26/demo-api`; service port `8000`; namespaces `demo` / `monitoring` / `gatekeeper-system` / `argocd`; Kubernetes `1.30`. Every component uses these identically, which is what lets the pieces interlock without glue code.

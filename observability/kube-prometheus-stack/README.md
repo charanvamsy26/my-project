@@ -58,5 +58,5 @@ These are set as ArgoCD Application parameter overrides, not edited here:
 | --------------------------------------- | ---------------- | ---------------- |
 | `prometheus.prometheusSpec.replicas`    | 1                | 2                |
 | `alertmanager.alertmanagerSpec.replicas`| 1                | 3                |
-| `prometheus...externalLabels.cluster`   | `my-project-dev` | `my-project-prod`|
+| `prometheus...externalLabels.cluster`   | `eks-gitops-platform-dev` | `eks-gitops-platform-prod`|
 | `prometheus...externalLabels.environment` | `dev`          | `prod`           |

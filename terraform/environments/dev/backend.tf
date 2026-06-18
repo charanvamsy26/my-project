@@ -8,10 +8,10 @@
 
 terraform {
   backend "s3" {
-    bucket         = "my-project-tfstate-<account_id>"
+    bucket         = "eks-gitops-platform-tfstate-<account_id>"
     key            = "environments/dev/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "my-project-tf-locks"
+    dynamodb_table = "eks-gitops-platform-tf-locks"
     encrypt        = true
   }
 }

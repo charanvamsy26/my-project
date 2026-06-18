@@ -7,7 +7,7 @@
 ###############################################################################
 
 aws_region  = "us-east-1"
-project     = "my-project"
+project     = "eks-gitops-platform"
 environment = "prod"
 
 # --- Networking (distinct CIDR from dev so the VPCs could be peered) ---

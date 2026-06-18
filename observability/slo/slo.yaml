@@ -20,7 +20,7 @@ service: "demo-api"
 # Labels propagated onto every generated rule and resulting alert/series, so SLO
 # series are discoverable and route correctly in Alertmanager.
 labels:
-  project: my-project
+  project: eks-gitops-platform
   team: platform
   owner: platform-sre
 
@@ -54,7 +54,7 @@ slos:
 
     # --- Alerting: page on fast burn, ticket on slow burn --------------------
     # These names/labels match the Alertmanager routing tree (severity=critical
-    # pages; slo=~".+" threads into #my-project-slo).
+    # pages; slo=~".+" threads into #eks-gitops-platform-slo).
     alerting:
       name: DemoApiAvailabilitySLO
       labels:

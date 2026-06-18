@@ -1,5 +1,5 @@
 ---
-# pre-commit hooks for my-project.
+# pre-commit hooks for eks-gitops-platform.
 #
 # Catches formatting/lint/security issues *before* they reach CI, giving a tight
 # local feedback loop. Mirrors the checks enforced in .github/workflows/.

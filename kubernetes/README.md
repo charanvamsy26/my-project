@@ -1,8 +1,8 @@
 # Kubernetes
 
-This directory holds the **Kubernetes-native** layer of **my-project** — the
+This directory holds the **Kubernetes-native** layer of **eks-gitops-platform** — the
 manifests and Helm chart that run on the EKS clusters provisioned by Terraform
-(`my-project-dev`, `my-project-prod`; Kubernetes 1.30, AWS `us-east-1`,
+(`eks-gitops-platform-dev`, `eks-gitops-platform-prod`; Kubernetes 1.30, AWS `us-east-1`,
 multi-AZ across `us-east-1a/b/c`).
 
 It assumes the cluster, node groups, networking, and platform add-ons (AWS Load
@@ -66,14 +66,14 @@ kubernetes/
    `demo-api.example.com`; TLS terminates on the ALB with an ACM certificate.
 4. **Prometheus** (kube-prometheus-stack in `monitoring`) scrapes `/metrics` via
    the chart's `ServiceMonitor`.
-5. **ArgoCD** (`argocd` namespace, project `my-project`) reconciles all of the
+5. **ArgoCD** (`argocd` namespace, project `eks-gitops-platform`) reconciles all of the
    above from Git using the app-of-apps pattern.
 
 ## Quick start (manual / bootstrap)
 
 ```bash
 # 1. Point kubectl at the target cluster
-aws eks update-kubeconfig --name my-project-dev --region us-east-1
+aws eks update-kubeconfig --name eks-gitops-platform-dev --region us-east-1
 
 # 2. Create namespaces (PSA + policy labels)
 kubectl apply -f kubernetes/namespaces/
@@ -90,15 +90,15 @@ kubectl -n demo rollout status deployment/demo-api-demo-api
 kubectl -n demo get svc,ingress,hpa,servicemonitor,pdb,networkpolicy
 ```
 
-For **prod**, target `my-project-prod` and use `values-prod.yaml`. In steady
+For **prod**, target `eks-gitops-platform-prod` and use `values-prod.yaml`. In steady
 state, prefer letting **ArgoCD** apply these rather than running the commands
 above by hand.
 
 ## Conventions
 
 * kebab-case for files and Kubernetes object names.
-* Standard labels on every object: `project=my-project`,
-  `app.kubernetes.io/part-of=my-project`, `managed-by`, and `environment`.
+* Standard labels on every object: `project=eks-gitops-platform`,
+  `app.kubernetes.io/part-of=eks-gitops-platform`, `managed-by`, and `environment`.
 * No `:latest` image tags — always an explicit, immutable tag.
 * Security defaults are non-negotiable: least privilege, dropped capabilities,
   read-only root filesystems, network policies, and resource limits.

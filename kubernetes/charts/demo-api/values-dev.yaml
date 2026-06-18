@@ -1,4 +1,4 @@
-# Dev overlay for demo-api (EKS cluster: my-project-dev).
+# Dev overlay for demo-api (EKS cluster: eks-gitops-platform-dev).
 # Keep it cheap and forgiving: fewer replicas, lower limits, verbose logs.
 # Usage:
 #   helm upgrade --install demo-api ./charts/demo-api -n demo \
@@ -35,7 +35,7 @@ ingress:
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
     alb.ingress.kubernetes.io/ssl-redirect: "443"
     alb.ingress.kubernetes.io/healthcheck-path: /healthz
-    alb.ingress.kubernetes.io/tags: Project=my-project,ManagedBy=terraform,Environment=dev
+    alb.ingress.kubernetes.io/tags: Project=eks-gitops-platform,ManagedBy=terraform,Environment=dev
     alb.ingress.kubernetes.io/certificate-arn: "<DEV_ACM_CERTIFICATE_ARN>"
 
 config:

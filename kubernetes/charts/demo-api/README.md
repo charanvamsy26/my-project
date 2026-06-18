@@ -1,7 +1,7 @@
 # demo-api Helm chart
 
 Helm chart that deploys **demo-api** — the reference Flask workload of the
-**my-project** platform — onto EKS, hardened to production defaults. It renders a
+**eks-gitops-platform** platform — onto EKS, hardened to production defaults. It renders a
 Deployment plus Service, ServiceAccount, ALB Ingress, HorizontalPodAutoscaler,
 ConfigMap, ServiceMonitor (Prometheus Operator), PodDisruptionBudget, and a
 NetworkPolicy.
@@ -17,8 +17,8 @@ NetworkPolicy.
 charts/demo-api/
 ├── Chart.yaml
 ├── values.yaml          # documented defaults
-├── values-dev.yaml      # dev overlay (my-project-dev)
-├── values-prod.yaml     # prod overlay (my-project-prod)
+├── values-dev.yaml      # dev overlay (eks-gitops-platform-dev)
+├── values-prod.yaml     # prod overlay (eks-gitops-platform-prod)
 ├── .helmignore
 ├── README.md            # this file
 └── templates/
@@ -53,7 +53,7 @@ helm upgrade --install demo-api charts/demo-api \
   --set image.tag=0.1.0
 ```
 
-In **my-project** this chart is normally delivered by **ArgoCD** (app-of-apps),
+In **eks-gitops-platform** this chart is normally delivered by **ArgoCD** (app-of-apps),
 not installed by hand.
 
 ## Security posture

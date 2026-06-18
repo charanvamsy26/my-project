@@ -1,6 +1,6 @@
 # Policy-as-Code (`policies/`)
 
-This directory holds the **policy-as-code** layer for `my-project`. Policies are
+This directory holds the **policy-as-code** layer for `eks-gitops-platform`. Policies are
 treated like any other source artifact: version-controlled, peer-reviewed, tested
 in CI, and rolled out through GitOps (ArgoCD). Two complementary engines are used,
 both built on the **Open Policy Agent (OPA)** / Rego language:
@@ -71,7 +71,7 @@ kubectl apply -f policies/gatekeeper/templates/
 kubectl apply -f policies/gatekeeper/constraints/
 ```
 
-In `my-project` all three steps are owned by **ArgoCD** (app-of-apps) so the cluster
+In `eks-gitops-platform` all three steps are owned by **ArgoCD** (app-of-apps) so the cluster
 state always matches this repo. Sync waves ensure ordering: `install` (wave 0) →
 `templates` (wave 1) → `constraints` (wave 2). The manual commands above are for
 local/break-glass use.
@@ -171,8 +171,8 @@ owner. Document the *why* in the resource's annotations:
 ```yaml
 metadata:
   annotations:
-    policy.my-project.io/exemption-reason: "legacy job, tracked in JIRA PLAT-1234"
-    policy.my-project.io/exemption-owner: "platform-team"
+    policy.eks-gitops-platform.io/exemption-reason: "legacy job, tracked in JIRA PLAT-1234"
+    policy.eks-gitops-platform.io/exemption-owner: "platform-team"
 ```
 
 > **Exemptions are debt.** Every one should reference a ticket and an owner, and be
@@ -198,7 +198,7 @@ policies/
 ## Conventions
 
 - File names are **kebab-case**; one ConstraintTemplate / Constraint per file.
-- Every constraint sets `metadata.labels` `app.kubernetes.io/part-of: my-project`.
+- Every constraint sets `metadata.labels` `app.kubernetes.io/part-of: eks-gitops-platform`.
 - Constraints exempt `kube-system`, `gatekeeper-system`, and (where a workload
   concern) `monitoring` unless there is a reason not to.
 - All Rego is written for the **Gatekeeper Rego v1** runtime (`if`/`contains`

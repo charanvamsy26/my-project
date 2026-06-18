@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # =============================================================================
-# up.sh — stand up the WHOLE my-project local demo on a kind cluster (NO AWS).
+# up.sh — stand up the WHOLE eks-gitops-platform local demo on a kind cluster (NO AWS).
 # -----------------------------------------------------------------------------
 # Idempotent end-to-end bring-up:
 #   1. preflight (docker/kind/kubectl/helm present, Docker running)
-#   2. create the kind cluster `my-project-local` (skip if it already exists)
+#   2. create the kind cluster `eks-gitops-platform-local` (skip if it already exists)
 #   3. build the demo-api image and `kind load docker-image` it into the cluster
 #   4. create namespaces (demo / monitoring / gatekeeper-system)
 #   5. install kube-prometheus-stack into `monitoring` with BOTH the cloud values
@@ -38,7 +38,7 @@ GK_CHART_VERSION="${GK_CHART_VERSION:-3.16.3}"
 
 main() {
   hr
-  log "my-project LOCAL demo — bring-up"
+  log "eks-gitops-platform LOCAL demo — bring-up"
   log "cluster=${CLUSTER_NAME}  context=${KUBE_CONTEXT}  image=${IMAGE_REF}"
   hr
 
@@ -157,10 +157,10 @@ install_dashboards() {
       | kubectl --context "${KUBE_CONTEXT}" label --local -f - \
           grafana_dashboard=1 -o yaml \
       | kubectl --context "${KUBE_CONTEXT}" annotate --local -f - \
-          grafana_folder=my-project -o yaml \
+          grafana_folder=eks-gitops-platform -o yaml \
       | kubectl --context "${KUBE_CONTEXT}" apply -f -
   done
-  ok "dashboard ConfigMaps applied (sidecar will import them into the 'my-project' folder)."
+  ok "dashboard ConfigMaps applied (sidecar will import them into the 'eks-gitops-platform' folder)."
 }
 
 # ---- 6. Gatekeeper + policies ----------------------------------------------

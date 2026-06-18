@@ -1,8 +1,8 @@
 # =============================================================================
-# OPA Gatekeeper — Helm values for my-project
+# OPA Gatekeeper — Helm values for eks-gitops-platform
 # -----------------------------------------------------------------------------
 # Chart : open-policy-agent/gatekeeper (pinned in the ArgoCD Application)
-# Target: EKS my-project-{dev,prod} (k8s 1.30), namespace `gatekeeper-system`.
+# Target: EKS eks-gitops-platform-{dev,prod} (k8s 1.30), namespace `gatekeeper-system`.
 #
 # This is the *engine* config consumed via the multi-source ArgoCD Application
 # (argocd/apps/gatekeeper.yaml -> $values/policies/gatekeeper/values.yaml).
@@ -83,5 +83,5 @@ metricsBackends:
 
 # Standard project labels stamped on chart-managed objects.
 podLabels:
-  app.kubernetes.io/part-of: my-project
+  app.kubernetes.io/part-of: eks-gitops-platform
   app.kubernetes.io/component: policy

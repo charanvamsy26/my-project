@@ -5,11 +5,11 @@
 #   * single NAT gateway
 #   * smaller node group
 #   * single-instance Aurora
-# Naming follows my-project-dev throughout.
+# Naming follows eks-gitops-platform-dev throughout.
 ###############################################################################
 
 locals {
-  name = "${var.project}-${var.environment}" # my-project-dev
+  name = "${var.project}-${var.environment}" # eks-gitops-platform-dev
 
   tags = {
     Project     = var.project

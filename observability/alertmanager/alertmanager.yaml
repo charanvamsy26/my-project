@@ -1,5 +1,5 @@
 # =============================================================================
-# Alertmanager configuration — my-project
+# Alertmanager configuration — eks-gitops-platform
 # -----------------------------------------------------------------------------
 # Routing tree, Slack receivers, and inhibition rules.
 #
@@ -97,7 +97,7 @@ receivers:
 
   - name: slack-critical
     slack_configs:
-      - channel: "#my-project-alerts-critical"   # placeholder channel
+      - channel: "#eks-gitops-platform-alerts-critical"   # placeholder channel
         send_resolved: true
         title: '[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname }}'
         text: >-
@@ -112,7 +112,7 @@ receivers:
 
   - name: slack-warnings
     slack_configs:
-      - channel: "#my-project-alerts"            # placeholder channel
+      - channel: "#eks-gitops-platform-alerts"            # placeholder channel
         send_resolved: true
         title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
         text: >-
@@ -125,7 +125,7 @@ receivers:
 
   - name: slack-slo
     slack_configs:
-      - channel: "#my-project-slo"               # placeholder channel
+      - channel: "#eks-gitops-platform-slo"               # placeholder channel
         send_resolved: true
         title: '[SLO {{ .Status | toUpper }}] {{ .CommonLabels.slo }} — {{ .CommonLabels.alertname }}'
         text: >-

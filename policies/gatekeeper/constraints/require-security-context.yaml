@@ -10,7 +10,7 @@ kind: K8sRequireSecurityContext
 metadata:
   name: require-hardened-security-context
   labels:
-    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
     app.kubernetes.io/component: policy
 spec:
   enforcementAction: deny

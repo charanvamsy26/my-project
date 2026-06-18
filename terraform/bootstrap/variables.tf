@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "project" {
   description = "Project name, used for naming and tagging."
   type        = string
-  default     = "my-project"
+  default     = "eks-gitops-platform"
 }
 
 variable "state_bucket_force_destroy" {

@@ -1,7 +1,7 @@
 apiVersion: v2
 name: demo-api
 description: >-
-  Helm chart for demo-api, the reference Flask workload of the my-project
+  Helm chart for demo-api, the reference Flask workload of the eks-gitops-platform
   platform. Renders a hardened Deployment plus Service, ServiceAccount, ALB
   Ingress, HPA, ConfigMap, ServiceMonitor, PodDisruptionBudget and
   NetworkPolicy.
@@ -15,9 +15,9 @@ appVersion: "0.1.0"
 
 kubeVersion: ">=1.30.0-0"
 
-home: https://github.com/charanvamsy26/my-project
+home: https://github.com/charanvamsy26/eks-gitops-platform
 sources:
-  - https://github.com/charanvamsy26/my-project
+  - https://github.com/charanvamsy26/eks-gitops-platform
 
 keywords:
   - flask

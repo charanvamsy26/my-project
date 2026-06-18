@@ -1,13 +1,13 @@
 # ArgoCD GitOps Layer (`argocd/`)
 
-Continuous delivery for **my-project** is driven by [ArgoCD](https://argo-cd.readthedocs.io/)
+Continuous delivery for **eks-gitops-platform** is driven by [ArgoCD](https://argo-cd.readthedocs.io/)
 using the **app-of-apps** pattern. A single *root* `Application` is applied by a human
 (or a bootstrap pipeline) exactly once; from then on ArgoCD reconciles every other
 workload — platform add-ons and the `demo-api` service — straight from Git. The cluster
 state is whatever `main` says it should be, and drift is corrected automatically.
 
-> Target cluster: `my-project-dev` / `my-project-prod` (EKS 1.30, `us-east-1`, multi-AZ).
-> Source of truth: `https://github.com/charanvamsy26/my-project.git` @ `main`.
+> Target cluster: `eks-gitops-platform-dev` / `eks-gitops-platform-prod` (EKS 1.30, `us-east-1`, multi-AZ).
+> Source of truth: `https://github.com/charanvamsy26/eks-gitops-platform.git` @ `main`.
 
 ---
 
@@ -25,7 +25,7 @@ argocd/
 ├── install/                 # one-time cluster bootstrap (not managed by ArgoCD itself)
 │   ├── namespace.yaml        #   argocd namespace
 │   ├── kustomization.yaml    #   remote base -> upstream stable install manifests (pinned)
-│   └── appproject.yaml       #   AppProject "my-project": source/destination/RBAC guardrails
+│   └── appproject.yaml       #   AppProject "eks-gitops-platform": source/destination/RBAC guardrails
 ├── bootstrap/
 │   └── root-app.yaml         # the ONE Application you apply by hand (app-of-apps)
 └── apps/                     # child Applications, reconciled by the root app
@@ -43,7 +43,7 @@ ArgoCD itself cannot be installed *by* ArgoCD (chicken-and-egg), so the `install
 only manual part. After that, everything flows from the root app.
 
 1. **Install ArgoCD** into the `argocd` namespace from the pinned upstream manifests.
-2. **Create the `my-project` `AppProject`** so all child apps inherit source/destination/RBAC
+2. **Create the `eks-gitops-platform` `AppProject`** so all child apps inherit source/destination/RBAC
    restrictions (defense in depth — even a malicious PR can't point an app at an arbitrary repo
    or cluster).
 3. **Apply the root app** (`bootstrap/root-app.yaml`). ArgoCD discovers `argocd/apps/`,
@@ -53,7 +53,7 @@ only manual part. After that, everything flows from the root app.
 
 ```bash
 # 0. Point kubectl at the right cluster (dev shown; swap for prod)
-aws eks update-kubeconfig --name my-project-dev --region us-east-1
+aws eks update-kubeconfig --name eks-gitops-platform-dev --region us-east-1
 
 # 1. Install ArgoCD (namespace + pinned upstream manifests)
 kubectl apply -k argocd/install/
@@ -76,7 +76,7 @@ kubectl -n argocd port-forward svc/argocd-server 8080:443
 ```
 
 > The `appproject.yaml` is applied directly (not via the root app) on purpose: the root app and
-> every child app reference `project: my-project`, so the project must exist *before* they sync.
+> every child app reference `project: eks-gitops-platform`, so the project must exist *before* they sync.
 > Keeping it in `install/` makes the dependency explicit and avoids a self-referential race.
 
 ---
@@ -128,7 +128,7 @@ These are scoped narrowly (specific `group`/`kind`/`jsonPointers`) so real drift
 ## Conventions enforced here
 
 - **One Application per file** in `argocd/apps/` — clean diffs, easy ownership.
-- **`repoURL: https://github.com/charanvamsy26/my-project.git`**, **`targetRevision: main`** everywhere.
+- **`repoURL: https://github.com/charanvamsy26/eks-gitops-platform.git`**, **`targetRevision: main`** everywhere.
 - **Pinned chart versions** (`targetRevision` on Helm sources) — never float to "latest".
 - **No `:latest` images** anywhere in the rendered output.
 - **`finalizers: [resources-finalizer.argocd.argoproj.io]`** on every Application so deleting an

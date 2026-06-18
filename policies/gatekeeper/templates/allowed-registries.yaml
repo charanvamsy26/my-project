@@ -1,6 +1,6 @@
 # ConstraintTemplate: K8sAllowedRegistries
 # Every container image must start with one of the allowed registry prefixes.
-# my-project pulls only from:
+# eks-gitops-platform pulls only from:
 #   - ghcr.io/charanvamsy26/...        (first-party images, built in CI)
 #   - <account_id>.dkr.ecr.us-east-1.amazonaws.com/...  (mirrored / private images)
 #
@@ -13,7 +13,7 @@ kind: ConstraintTemplate
 metadata:
   name: k8sallowedregistries
   labels:
-    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
     app.kubernetes.io/component: policy
   annotations:
     description: >-

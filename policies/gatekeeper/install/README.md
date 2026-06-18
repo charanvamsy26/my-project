@@ -1,7 +1,7 @@
 # Gatekeeper install (`gatekeeper/install/`)
 
-Installs and configures the **OPA Gatekeeper control plane** on the `my-project`
-EKS clusters (`my-project-dev`, `my-project-prod`, Kubernetes 1.30).
+Installs and configures the **OPA Gatekeeper control plane** on the `eks-gitops-platform`
+EKS clusters (`eks-gitops-platform-dev`, `eks-gitops-platform-prod`, Kubernetes 1.30).
 
 ## Layout
 

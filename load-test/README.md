@@ -1,6 +1,6 @@
 # load-test — demo-api reliability demo
 
-This directory is the **load-testing layer** of the `my-project` EKS GitOps
+This directory is the **load-testing layer** of the `eks-gitops-platform` EKS GitOps
 platform. It exists to *prove the reliability story end-to-end*: it generates
 traffic against `demo-api`, and — paired with the app's built-in chaos hooks —
 shows the SLO either holding or visibly burning, lighting up the same metrics,

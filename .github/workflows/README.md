@@ -1,6 +1,6 @@
 # GitHub Actions Workflows
 
-CI/CD automation for **my-project**. Every pipeline is least-privilege (scoped
+CI/CD automation for **eks-gitops-platform**. Every pipeline is least-privilege (scoped
 `permissions:` per job), pins each action to a version, and is path-filtered so a
 change only triggers the pipelines it can actually affect.
 
@@ -27,7 +27,7 @@ Provider URL: https://token.actions.githubusercontent.com
 Audience:     sts.amazonaws.com
 ```
 
-### 2. Create the role `my-project-gha-terraform-plan`
+### 2. Create the role `eks-gitops-platform-gha-terraform-plan`
 
 Trust policy (replace `<account_id>`):
 
@@ -42,23 +42,23 @@ Trust policy (replace `<account_id>`):
     "Action": "sts:AssumeRoleWithWebIdentity",
     "Condition": {
       "StringEquals": { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" },
-      "StringLike":   { "token.actions.githubusercontent.com:sub": "repo:charanvamsy26/my-project:*" }
+      "StringLike":   { "token.actions.githubusercontent.com:sub": "repo:charanvamsy26/eks-gitops-platform:*" }
     }
   }]
 }
 ```
 
 > Tighten `sub` per environment for stronger isolation, e.g.
-> `repo:charanvamsy26/my-project:pull_request` or
-> `repo:charanvamsy26/my-project:ref:refs/heads/main`.
+> `repo:charanvamsy26/eks-gitops-platform:pull_request` or
+> `repo:charanvamsy26/eks-gitops-platform:ref:refs/heads/main`.
 
 Permissions: attach a policy granting **read access for plan** plus read/write to
 the remote-state backend:
 
 - S3: `s3:GetObject`, `s3:PutObject`, `s3:ListBucket` on
-  `my-project-tfstate-<account_id>`.
+  `eks-gitops-platform-tfstate-<account_id>`.
 - DynamoDB: `dynamodb:GetItem`, `PutItem`, `DeleteItem` on table
-  `my-project-tf-locks` (state locking).
+  `eks-gitops-platform-tf-locks` (state locking).
 - Plus the AWS read permissions Terraform needs to refresh resources (EKS, VPC,
   IAM read, etc.). Start from `ReadOnlyAccess` and add the few state-backend
   writes above; grant apply permissions to a *separate* role used only by a
@@ -70,7 +70,7 @@ Add a **repository variable** (Settings → Secrets and variables → Actions �
 Variables):
 
 ```text
-AWS_PLAN_ROLE_ARN = arn:aws:iam::<account_id>:role/my-project-gha-terraform-plan
+AWS_PLAN_ROLE_ARN = arn:aws:iam::<account_id>:role/eks-gitops-platform-gha-terraform-plan
 ```
 
 The workflow reads it as `${{ vars.AWS_PLAN_ROLE_ARN }}`. The `plan` job also

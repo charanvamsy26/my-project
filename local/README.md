@@ -7,7 +7,7 @@ OPA Gatekeeper guardrails, and the *same* SLO **error-budget-burn → page →
 auto-remediation** loop — just pointed at a local cluster instead of EKS.
 
 > **What you get:** a Kubernetes 1.30 [kind](https://kind.sigs.k8s.io/) cluster
-> named **`my-project-local`** running `demo-api`, Prometheus, Grafana, and
+> named **`eks-gitops-platform-local`** running `demo-api`, Prometheus, Grafana, and
 > Gatekeeper, with the burn demo and live screenshot capture wired into `make`.
 
 Everything here is **local-only**: ALB/RDS/IRSA and other cloud-only bits are
@@ -69,13 +69,13 @@ That single target is idempotent (safe to re-run) and does the whole bring-up:
 
 1. **Preflight** — checks `docker`, `kind`, `kubectl`, `helm` are installed and
    Docker is running; fails fast with an install hint otherwise.
-2. **Cluster** — creates the kind cluster **`my-project-local`** from
+2. **Cluster** — creates the kind cluster **`eks-gitops-platform-local`** from
    [`local/kind/kind-config.yaml`](kind/) using node image
    **`kindest/node:v1.30.x`** (Kubernetes 1.30). Re-running reuses the existing
    cluster.
 3. **Image** — builds `app/Dockerfile` as
    **`ghcr.io/charanvamsy26/demo-api:local`** and runs
-   `kind load docker-image ghcr.io/charanvamsy26/demo-api:local --name my-project-local`
+   `kind load docker-image ghcr.io/charanvamsy26/demo-api:local --name eks-gitops-platform-local`
    so the node can pull it without a registry. The tag is **explicit (not
    `:latest`)** and under the **`ghcr.io/charanvamsy26/`** prefix, so it
    satisfies Gatekeeper's *allowed-registries* and *disallow-latest-tag*
@@ -219,7 +219,7 @@ PR, a portfolio writeup, or to compare against the illustrative
 make demo-down
 ```
 
-Deletes the entire kind cluster `my-project-local` (and everything in it). It's
+Deletes the entire kind cluster `eks-gitops-platform-local` (and everything in it). It's
 idempotent — safe to run even if the cluster is already gone. Nothing is left
 running on your machine and no cloud resources are ever created, so there is
 nothing to bill.
@@ -249,11 +249,11 @@ The local image lives only in your Docker daemon until it's loaded into kind.
 `make demo-up` does this for you, but if you rebuilt the image manually, re-load it:
 
 ```bash
-kind load docker-image ghcr.io/charanvamsy26/demo-api:local --name my-project-local
+kind load docker-image ghcr.io/charanvamsy26/demo-api:local --name eks-gitops-platform-local
 kubectl -n demo rollout restart deployment/demo-api
 ```
 
-Confirm the node has it: `docker exec my-project-local-control-plane crictl images | grep demo-api`.
+Confirm the node has it: `docker exec eks-gitops-platform-local-control-plane crictl images | grep demo-api`.
 
 **Pods stuck `Pending` — not enough resources.**
 Usually Docker doesn't have enough CPU/RAM. Raise Docker Desktop's limits

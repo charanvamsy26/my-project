@@ -1,9 +1,9 @@
 # =============================================================================
-# kube-prometheus-stack — Helm values for my-project
+# kube-prometheus-stack — Helm values for eks-gitops-platform
 # -----------------------------------------------------------------------------
 # Chart : prometheus-community/kube-prometheus-stack
 # Pinned: see Chart version in the ArgoCD Application (GitOps builder owns it).
-# Target: EKS my-project-{dev,prod} (k8s 1.30), namespace `monitoring`, AWS us-east-1.
+# Target: EKS eks-gitops-platform-{dev,prod} (k8s 1.30), namespace `monitoring`, AWS us-east-1.
 #
 # Release name MUST be `kube-prometheus-stack`. Prometheus selects ServiceMonitors
 # carrying `release: kube-prometheus-stack` (see prometheus.prometheusSpec below),
@@ -20,8 +20,8 @@ fullnameOverride: kube-prometheus-stack
 
 commonLabels:
   # Stamped on every object so cost/ownership tooling can attribute the stack.
-  app.kubernetes.io/part-of: my-project
-  project: my-project
+  app.kubernetes.io/part-of: eks-gitops-platform
+  project: eks-gitops-platform
 
 # Pin component image tags via the chart's defaults; we never override to :latest.
 # (Image tags are managed by the pinned chart version, not hand-edited here.)
@@ -78,7 +78,7 @@ prometheus:
     # Tag every sample with its origin cluster/env so dev and prod can share a
     # remote store or a single Grafana without series colliding.
     externalLabels:
-      cluster: my-project          # overridden per-env by ArgoCD (my-project-dev/prod)
+      cluster: eks-gitops-platform          # overridden per-env by ArgoCD (eks-gitops-platform-dev/prod)
       environment: dev             # overridden per-env by ArgoCD
 
     # --- Persistent storage ----------------------------------------------------
@@ -190,7 +190,7 @@ grafana:
   # The sidecar watches the whole cluster for ConfigMaps labelled
   # `grafana_dashboard: "1"` and imports them into Grafana. This is what lets us
   # ship dashboards as Git-managed ConfigMaps (grafana/dashboards/) instead of
-  # clicking them in. Folder annotation keeps my-project dashboards grouped.
+  # clicking them in. Folder annotation keeps eks-gitops-platform dashboards grouped.
   sidecar:
     dashboards:
       enabled: true
@@ -201,7 +201,7 @@ grafana:
       provider:
         foldersFromFilesStructure: true
       annotations:
-        grafana_folder: my-project
+        grafana_folder: eks-gitops-platform
     datasources:
       enabled: true
       label: grafana_datasource

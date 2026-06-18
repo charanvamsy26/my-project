@@ -61,7 +61,7 @@
   "liveNow": false,
   "refresh": "10s",
   "schemaVersion": 39,
-  "tags": ["my-project", "demo-api", "slo", "error-budget", "burn", "demo"],
+  "tags": ["eks-gitops-platform", "demo-api", "slo", "error-budget", "burn", "demo"],
   "templating": {
     "list": [
       {

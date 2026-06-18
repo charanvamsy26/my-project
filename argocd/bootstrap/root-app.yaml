@@ -16,13 +16,13 @@ metadata:
     # Render the children before any real workload syncs.
     argocd.argoproj.io/sync-wave: "-1"
   labels:
-    project: my-project
+    project: eks-gitops-platform
     managed-by: argocd
 spec:
-  project: my-project
+  project: eks-gitops-platform
 
   source:
-    repoURL: https://github.com/charanvamsy26/my-project.git
+    repoURL: https://github.com/charanvamsy26/eks-gitops-platform.git
     targetRevision: main
     # The folder of child Application YAMLs. `directory.recurse` lets us nest if needed later.
     path: argocd/apps

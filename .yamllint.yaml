@@ -1,4 +1,4 @@
-# yamllint configuration for my-project.
+# yamllint configuration for eks-gitops-platform.
 #
 # Tuned for Kubernetes/Helm/GitHub Actions YAML, which legitimately uses long
 # lines and `on:` keys. We extend the "default" preset and relax a few rules.

@@ -27,7 +27,7 @@ Kubernetes/GitOps layer, annotated with the role ARN this module outputs.
 module "lb_controller_irsa" {
   source = "../../modules/iam-irsa"
 
-  name              = "my-project-dev-aws-lb-controller"
+  name              = "eks-gitops-platform-dev-aws-lb-controller"
   oidc_provider_arn = module.eks.oidc_provider_arn
   oidc_provider_url = module.eks.oidc_provider_url   # no https:// prefix
 
@@ -86,7 +86,7 @@ inline_policy_json = templatefile(
 ```hcl
 module "ebs_csi_irsa" {
   source                     = "../../modules/iam-irsa"
-  name                       = "my-project-dev-ebs-csi"
+  name                       = "eks-gitops-platform-dev-ebs-csi"
   oidc_provider_arn          = module.eks.oidc_provider_arn
   oidc_provider_url          = module.eks.oidc_provider_url
   namespace_service_accounts = ["kube-system:ebs-csi-controller-sa"]

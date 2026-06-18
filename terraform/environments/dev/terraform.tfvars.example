@@ -10,7 +10,7 @@
 ###############################################################################
 
 aws_region  = "us-east-1"
-project     = "my-project"
+project     = "eks-gitops-platform"
 environment = "dev"
 
 # --- Networking ---

@@ -21,8 +21,8 @@ metadata:
   labels:
     # Discovery contract: the Operator only adopts rules with this release label.
     release: kube-prometheus-stack
-    app.kubernetes.io/part-of: my-project
-    project: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
+    project: eks-gitops-platform
 spec:
   groups:
     # -------------------------------------------------------------------------

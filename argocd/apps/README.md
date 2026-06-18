@@ -20,8 +20,8 @@ workload is wave 2 so it lands only after everything it depends on is Healthy. S
 
 ## Conventions (all files)
 
-- `repoURL: https://github.com/charanvamsy26/my-project.git`, `targetRevision: main`.
-- `project: my-project` (inherits the `AppProject` guardrails from `../install/appproject.yaml`).
+- `repoURL: https://github.com/charanvamsy26/eks-gitops-platform.git`, `targetRevision: main`.
+- `project: eks-gitops-platform` (inherits the `AppProject` guardrails from `../install/appproject.yaml`).
 - Automated sync with `prune: true` + `selfHeal: true`, `allowEmpty: false`.
 - `ServerSideApply=true` everywhere (large CRDs exceed the client-side annotation limit).
 - **Pinned** chart/image versions — never `latest`.
@@ -45,9 +45,9 @@ These values must match the kubernetes/helm and observability builders **exactly
 
 ## Multi-environment
 
-`demo-api.yaml` targets **dev** (`values-dev.yaml`, cluster `my-project-dev`). For prod, copy the
+`demo-api.yaml` targets **dev** (`values-dev.yaml`, cluster `eks-gitops-platform-dev`). For prod, copy the
 file to a prod-scoped Application (e.g. via an overlay or a `demo-api-prod.yaml`) that uses
-`values-prod.yaml` and the `my-project-prod` destination. Keeping dev/prod as separate Application
+`values-prod.yaml` and the `eks-gitops-platform-prod` destination. Keeping dev/prod as separate Application
 objects gives independent sync state, history, and rollback per environment.
 
 ## Optional component

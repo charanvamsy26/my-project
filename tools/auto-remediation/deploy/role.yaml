@@ -39,10 +39,10 @@ metadata:
   namespace: demo
   labels:
     app.kubernetes.io/name: auto-remediation
-    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
     app.kubernetes.io/component: rbac
     app.kubernetes.io/managed-by: kustomize
-    project: my-project
+    project: eks-gitops-platform
 rules:
   # get + patch on the single demo-api deployment.
   - apiGroups: ["apps"]

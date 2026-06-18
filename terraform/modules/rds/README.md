@@ -1,6 +1,6 @@
 # module: rds
 
-**Aurora PostgreSQL** for `my-project` — encrypted, private, optionally multi-AZ,
+**Aurora PostgreSQL** for `eks-gitops-platform` — encrypted, private, optionally multi-AZ,
 with credentials managed by AWS Secrets Manager.
 
 ## What it creates
@@ -44,7 +44,7 @@ with credentials managed by AWS Secrets Manager.
 module "rds" {
   source = "../../modules/rds"
 
-  name       = "my-project-dev"
+  name       = "eks-gitops-platform-dev"
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnet_ids
 

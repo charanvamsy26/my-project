@@ -1,13 +1,13 @@
-# Observability — `my-project`
+# Observability — `eks-gitops-platform`
 
-Production-grade observability layer for the **my-project** reference platform. This
+Production-grade observability layer for the **eks-gitops-platform** reference platform. This
 directory contains everything required to monitor the platform and the sample
 `demo-api` workload: metrics collection (Prometheus), visualisation (Grafana),
 alerting (Alertmanager), and a real, error-budget-driven SLO for `demo-api`.
 
 The stack is **kube-prometheus-stack** (Prometheus Operator + Prometheus +
 Alertmanager + Grafana + node-exporter + kube-state-metrics), deployed via **ArgoCD**
-into the `monitoring` namespace on the `my-project-dev` / `my-project-prod` EKS
+into the `monitoring` namespace on the `eks-gitops-platform-dev` / `eks-gitops-platform-prod` EKS
 clusters (Kubernetes 1.30, AWS `us-east-1`, multi-AZ).
 
 ---
@@ -195,7 +195,7 @@ fall back below threshold and the budget stop draining.
 ## How it's deployed (kube-prometheus-stack via ArgoCD)
 
 The monitoring stack is **not** applied with `helm install` by hand. ArgoCD's
-app-of-apps (project `my-project`) owns it:
+app-of-apps (project `eks-gitops-platform`) owns it:
 
 1. An ArgoCD `Application` (managed by the GitOps builder, not here) references the
    upstream `kube-prometheus-stack` Helm chart and **this directory's
@@ -252,7 +252,7 @@ sloth generate -i slo/slo.yaml -o prometheus/rules/slo-rules.yaml
 ## Conventions
 
 - Kubernetes objects and filenames are **kebab-case**.
-- Everything is tagged / labelled with `Project=my-project` and an `Environment`.
+- Everything is tagged / labelled with `Project=eks-gitops-platform` and an `Environment`.
 - No `:latest` image tags; pinned chart and image versions only.
 - Secrets (Slack webhook, Grafana admin) are **referenced**, never committed —
   sourced from Kubernetes Secrets / External Secrets, documented inline.

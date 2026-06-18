@@ -32,14 +32,14 @@ data "aws_availability_zones" "available" {
 module "vpc" {
   source = "../../modules/vpc"
 
-  name                 = "my-project-dev"
+  name                 = "eks-gitops-platform-dev"
   cidr_block           = "10.0.0.0/16"
   azs                  = slice(data.aws_availability_zones.available.names, 0, 3)
   public_subnet_cidrs  = ["10.0.0.0/20", "10.0.16.0/20", "10.0.32.0/20"]
   private_subnet_cidrs = ["10.0.64.0/20", "10.0.80.0/20", "10.0.96.0/20"]
 
   single_nat_gateway = true              # dev: one NAT to save cost
-  eks_cluster_name   = "my-project-dev"
+  eks_cluster_name   = "eks-gitops-platform-dev"
 
   tags = local.tags
 }

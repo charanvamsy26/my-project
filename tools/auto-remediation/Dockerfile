@@ -44,7 +44,7 @@ FROM ${PYTHON_BASE} AS runtime
 # OCI labels for provenance.
 LABEL org.opencontainers.image.title="auto-remediation" \
       org.opencontainers.image.description="Self-healing controller for demo-api SLO burn" \
-      org.opencontainers.image.source="https://github.com/charanvamsy26/my-project" \
+      org.opencontainers.image.source="https://github.com/charanvamsy26/eks-gitops-platform" \
       org.opencontainers.image.licenses="MIT"
 
 ENV PYTHONUNBUFFERED=1 \

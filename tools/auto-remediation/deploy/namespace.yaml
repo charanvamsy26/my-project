@@ -14,8 +14,8 @@ kind: Namespace
 metadata:
   name: sre-tools
   labels:
-    app.kubernetes.io/part-of: my-project
-    project: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
+    project: eks-gitops-platform
     managed-by: argocd
     environment: dev
     pod-security.kubernetes.io/enforce: restricted

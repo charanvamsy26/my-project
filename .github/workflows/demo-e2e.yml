@@ -19,7 +19,7 @@
 #
 # Everything here mirrors the SHARED LOCAL-DEMO CONSTANTS so it stays in lockstep
 # with `make demo-up` / local/scripts/up.sh:
-#   kind cluster ... my-project-local   (k8s 1.30, kindest/node:v1.30.x)
+#   kind cluster ... eks-gitops-platform-local   (k8s 1.30, kindest/node:v1.30.x)
 #   image .......... ghcr.io/charanvamsy26/demo-api:local  (IfNotPresent)
 #   namespaces ..... demo / monitoring / gatekeeper-system
 # =============================================================================
@@ -50,7 +50,7 @@ concurrency:
 
 env:
   # Single source of truth — must match the shared local-demo constants exactly.
-  CLUSTER_NAME: my-project-local
+  CLUSTER_NAME: eks-gitops-platform-local
   KIND_NODE_IMAGE: "kindest/node:v1.30.4"
   IMAGE: "ghcr.io/charanvamsy26/demo-api:local"
   APP_NS: demo

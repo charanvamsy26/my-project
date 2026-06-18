@@ -6,11 +6,11 @@
 #   * larger node group spanning 3 AZs
 #   * multi-AZ Aurora (writer + reader)
 #   * deletion protection on, final snapshots taken
-# Naming follows my-project-prod throughout.
+# Naming follows eks-gitops-platform-prod throughout.
 ###############################################################################
 
 locals {
-  name = "${var.project}-${var.environment}" # my-project-prod
+  name = "${var.project}-${var.environment}" # eks-gitops-platform-prod
 
   tags = {
     Project     = var.project

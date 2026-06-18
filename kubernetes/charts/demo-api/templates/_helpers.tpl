@@ -45,15 +45,15 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{/*
 Standard labels applied to every object. Combines the recommended
 app.kubernetes.io/* set with the project-wide labels from the SPEC
-(Project=my-project, ManagedBy, Environment).
+(Project=eks-gitops-platform, ManagedBy, Environment).
 */}}
 {{- define "demo-api.labels" -}}
 helm.sh/chart: {{ include "demo-api.chart" . }}
 {{ include "demo-api.selectorLabels" . }}
 app.kubernetes.io/version: {{ .Values.image.tag | default .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/part-of: my-project
-project: my-project
+app.kubernetes.io/part-of: eks-gitops-platform
+project: eks-gitops-platform
 managed-by: helm
 environment: {{ .Values.environment | quote }}
 {{- with .Values.commonLabels }}

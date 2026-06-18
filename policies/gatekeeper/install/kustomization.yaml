@@ -1,5 +1,5 @@
 # Installs the OPA Gatekeeper control plane on the EKS clusters
-# (my-project-dev / my-project-prod, Kubernetes 1.30).
+# (eks-gitops-platform-dev / eks-gitops-platform-prod, Kubernetes 1.30).
 #
 # WHY a remote base pinned to a tag instead of `kubectl apply -f <url>`:
 #   - Reproducible: the ?ref=vX.Y.Z below pins the exact upstream release, so a
@@ -39,6 +39,6 @@ resources:
 labels:
   - includeSelectors: false
     pairs:
-      app.kubernetes.io/part-of: my-project
+      app.kubernetes.io/part-of: eks-gitops-platform
       app.kubernetes.io/component: policy
       managed-by: argocd

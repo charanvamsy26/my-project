@@ -1,5 +1,5 @@
 variable "name" {
-  description = "Name of the IAM role to create (e.g. my-project-dev-aws-lb-controller)."
+  description = "Name of the IAM role to create (e.g. eks-gitops-platform-dev-aws-lb-controller)."
   type        = string
 }
 

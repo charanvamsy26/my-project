@@ -1,6 +1,6 @@
 # Deployment runbook
 
-End-to-end procedure to stand up `my-project` from nothing to a running, GitOps-managed `demo-api` on EKS. This is the long-form companion to the README Quickstart. All commands target **`us-east-1`**; the example uses the **`dev`** environment.
+End-to-end procedure to stand up `eks-gitops-platform` from nothing to a running, GitOps-managed `demo-api` on EKS. This is the long-form companion to the README Quickstart. All commands target **`us-east-1`**; the example uses the **`dev`** environment.
 
 ## 0. Prerequisites
 
@@ -26,7 +26,7 @@ terraform init
 terraform apply
 ```
 
-Record the outputs — in particular the bucket name `my-project-tfstate-<account_id>` and the lock table `my-project-tf-locks`. The bucket is versioned and AES256-encrypted with all public access blocked; `force_destroy` defaults to `false` so state history is protected.
+Record the outputs — in particular the bucket name `eks-gitops-platform-tfstate-<account_id>` and the lock table `eks-gitops-platform-tf-locks`. The bucket is versioned and AES256-encrypted with all public access blocked; `force_destroy` defaults to `false` so state history is protected.
 
 ## 2. Configure the environment backend and variables
 
@@ -47,7 +47,7 @@ Review the defaults. Notably, `endpoint_public_access_cidrs` defaults to `0.0.0.
 
 ```bash
 terraform init        # configures the S3 backend + DynamoDB lock
-terraform plan        # review: VPC, EKS my-project-dev, RDS, IRSA roles, add-ons
+terraform plan        # review: VPC, EKS eks-gitops-platform-dev, RDS, IRSA roles, add-ons
 terraform apply
 ```
 
@@ -59,18 +59,18 @@ make tf-plan
 make tf-apply
 ```
 
-This creates the VPC, the `my-project-dev` EKS cluster (k8s 1.30), the Aurora PostgreSQL cluster, the IRSA roles, and EKS add-ons. Expect ~15–20 minutes for the EKS control plane and node groups.
+This creates the VPC, the `eks-gitops-platform-dev` EKS cluster (k8s 1.30), the Aurora PostgreSQL cluster, the IRSA roles, and EKS add-ons. Expect ~15–20 minutes for the EKS control plane and node groups.
 
 ## 4. Get cluster access
 
 ```bash
-aws eks update-kubeconfig --name my-project-dev --region us-east-1
+aws eks update-kubeconfig --name eks-gitops-platform-dev --region us-east-1
 kubectl get nodes        # nodes should be Ready
 ```
 
 ## 5. Install ArgoCD and the AppProject
 
-ArgoCD itself is the bootstrap dependency for GitOps; install it (and the `my-project` AppProject guardrails) via the pinned kustomize base:
+ArgoCD itself is the bootstrap dependency for GitOps; install it (and the `eks-gitops-platform` AppProject guardrails) via the pinned kustomize base:
 
 ```bash
 kubectl apply -k argocd/install/
@@ -130,14 +130,14 @@ kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:909
 ## 9. Promote to prod
 
 The prod path is identical, with these differences:
-- Work in `terraform/environments/prod/` (cluster `my-project-prod`, larger nodes, NAT per AZ, multi-AZ Aurora, deletion protection on).
+- Work in `terraform/environments/prod/` (cluster `eks-gitops-platform-prod`, larger nodes, NAT per AZ, multi-AZ Aurora, deletion protection on).
 - The `demo-api` Application uses `values-prod.yaml` and the prod cluster — see `argocd/apps/README.md`.
 
 ```bash
 cd terraform/environments/prod
 # edit backend.tf (<account_id>) and terraform.tfvars
 terraform init && terraform plan && terraform apply
-aws eks update-kubeconfig --name my-project-prod --region us-east-1
+aws eks update-kubeconfig --name eks-gitops-platform-prod --region us-east-1
 ```
 
 ## 10. Day-2: making changes

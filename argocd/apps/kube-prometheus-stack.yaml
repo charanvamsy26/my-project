@@ -17,11 +17,11 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "0"
   labels:
-    project: my-project
+    project: eks-gitops-platform
     managed-by: argocd
     component: observability
 spec:
-  project: my-project
+  project: eks-gitops-platform
 
   sources:
     # 1) The chart from the upstream Helm repo, version-pinned (never "latest").
@@ -34,7 +34,7 @@ spec:
         valueFiles:
           - $values/observability/kube-prometheus-stack/values.yaml
     # 2) Our repo, only to expose observability/ as $values to the chart above.
-    - repoURL: https://github.com/charanvamsy26/my-project.git
+    - repoURL: https://github.com/charanvamsy26/eks-gitops-platform.git
       targetRevision: main
       ref: values
 

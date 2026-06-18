@@ -30,7 +30,7 @@ metadata:
   namespace: demo
   labels:
     app.kubernetes.io/name: demo-api
-    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
     app.kubernetes.io/component: chaos-experiment
     app.kubernetes.io/managed-by: kubectl
 spec:

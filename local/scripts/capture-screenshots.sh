@@ -39,7 +39,7 @@ trap cleanup EXIT INT TERM
 
 main() {
   hr
-  log "my-project LOCAL demo — capture Grafana screenshots into docs/img/"
+  log "eks-gitops-platform LOCAL demo — capture Grafana screenshots into docs/img/"
   hr
 
   preflight curl

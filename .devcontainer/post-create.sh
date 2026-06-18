@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# postCreate for the my-project local-demo dev container.
+# postCreate for the eks-gitops-platform local-demo dev container.
 #
 # Runs once after the container is built. It deliberately does NOT boot the
 # cluster (that is heavy and a user may just want to read the code) — instead it
@@ -13,7 +13,7 @@
 set -euo pipefail
 
 echo
-echo "==> my-project local demo — toolchain check"
+echo "==> eks-gitops-platform local demo — toolchain check"
 missing=0
 for t in docker kind kubectl helm; do
   if command -v "$t" >/dev/null 2>&1; then

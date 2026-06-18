@@ -16,10 +16,10 @@ kind: K8sRequirePDB
 metadata:
   name: require-pdb-for-deployments
   labels:
-    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
     app.kubernetes.io/component: policy
   annotations:
-    policy.my-project.io/promotion: "remains dryrun; promote per-namespace only after PDB coverage is verified via audit"
+    policy.eks-gitops-platform.io/promotion: "remains dryrun; promote per-namespace only after PDB coverage is verified via audit"
 spec:
   enforcementAction: dryrun
   match:

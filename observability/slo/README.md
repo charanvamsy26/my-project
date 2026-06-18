@@ -1,6 +1,6 @@
 # SLO definitions
 
-Declarative, version-controlled Service Level Objectives for `my-project`.
+Declarative, version-controlled Service Level Objectives for `eks-gitops-platform`.
 
 ## `slo.yaml` — the source of truth
 

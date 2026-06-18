@@ -1,13 +1,13 @@
 # environment: prod
 
 The **prod** root module — the high-availability platform.
-Cluster name: **`my-project-prod`**.
+Cluster name: **`eks-gitops-platform-prod`**.
 
 ## What it provisions
 
 ```
 module.vpc            10.1.0.0/16, 3 AZs, NAT gateway PER AZ, flow logs
-module.eks            my-project-prod (K8s 1.30), m5.xlarge nodes (3-9), IRSA, full control-plane logs
+module.eks            eks-gitops-platform-prod (K8s 1.30), m5.xlarge nodes (3-9), IRSA, full control-plane logs
 module.*_irsa         least-privilege IRSA roles: LB controller, external-dns, ebs-csi, karpenter
 module.rds            Aurora PostgreSQL, writer + reader (multi-AZ), deletion protection ON
 module.eks_addons     AWS Load Balancer Controller + metrics-server (Helm)

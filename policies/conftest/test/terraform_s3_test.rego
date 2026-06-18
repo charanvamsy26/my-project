@@ -13,14 +13,14 @@ compliant_plan := {"resource_changes": [
 		"address": "module.tfstate.aws_s3_bucket.this",
 		"type": "aws_s3_bucket",
 		"name": "this",
-		"change": {"actions": ["create"], "after": {"bucket": "my-project-tfstate-123456789012", "acl": "private"}},
+		"change": {"actions": ["create"], "after": {"bucket": "eks-gitops-platform-tfstate-123456789012", "acl": "private"}},
 	},
 	{
 		"address": "module.tfstate.aws_s3_bucket_public_access_block.this",
 		"type": "aws_s3_bucket_public_access_block",
 		"name": "this",
 		"change": {"actions": ["create"], "after": {
-			"bucket": "my-project-tfstate-123456789012",
+			"bucket": "eks-gitops-platform-tfstate-123456789012",
 			"block_public_acls": true,
 			"block_public_policy": true,
 			"ignore_public_acls": true,
@@ -31,14 +31,14 @@ compliant_plan := {"resource_changes": [
 		"address": "module.tfstate.aws_s3_bucket_server_side_encryption_configuration.this",
 		"type": "aws_s3_bucket_server_side_encryption_configuration",
 		"name": "this",
-		"change": {"actions": ["create"], "after": {"bucket": "my-project-tfstate-123456789012"}},
+		"change": {"actions": ["create"], "after": {"bucket": "eks-gitops-platform-tfstate-123456789012"}},
 	},
 	{
 		"address": "module.tfstate.aws_s3_bucket_versioning.this",
 		"type": "aws_s3_bucket_versioning",
 		"name": "this",
 		"change": {"actions": ["create"], "after": {
-			"bucket": "my-project-tfstate-123456789012",
+			"bucket": "eks-gitops-platform-tfstate-123456789012",
 			"versioning_configuration": [{"status": "Enabled"}],
 		}},
 	},

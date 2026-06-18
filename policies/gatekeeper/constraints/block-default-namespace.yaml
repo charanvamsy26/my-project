@@ -9,7 +9,7 @@ kind: K8sBlockDefaultNamespace
 metadata:
   name: block-default-namespace
   labels:
-    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
     app.kubernetes.io/component: policy
 spec:
   enforcementAction: deny

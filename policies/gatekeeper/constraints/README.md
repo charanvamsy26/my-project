@@ -67,7 +67,7 @@ demo-api Helm template renders:
 
 | Constraint | What demo-api provides | Pass? |
 | ---------- | ---------------------- | :---: |
-| Required labels | `app.kubernetes.io/name: demo-api`, `app.kubernetes.io/part-of: my-project`, `app.kubernetes.io/managed-by: Helm` (set by Helm's standard labels helper) | ✅ |
+| Required labels | `app.kubernetes.io/name: demo-api`, `app.kubernetes.io/part-of: eks-gitops-platform`, `app.kubernetes.io/managed-by: Helm` (set by Helm's standard labels helper) | ✅ |
 | Disallow :latest | image is `ghcr.io/charanvamsy26/demo-api:<tag>` — explicit version tag, never `:latest`, never untagged | ✅ |
 | Require resources | container sets `resources.requests.{cpu,memory}` **and** `resources.limits.{cpu,memory}` | ✅ |
 | Security context | pod `runAsNonRoot: true`; container `allowPrivilegeEscalation: false`, `capabilities.drop: [ALL]`, not privileged | ✅ |
@@ -83,7 +83,7 @@ demo-api Helm template renders:
 > metadata:
 >   labels:
 >     app.kubernetes.io/name: demo-api
->     app.kubernetes.io/part-of: my-project
+>     app.kubernetes.io/part-of: eks-gitops-platform
 >     app.kubernetes.io/managed-by: Helm
 > spec:
 >   securityContext:

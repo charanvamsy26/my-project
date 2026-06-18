@@ -1,5 +1,5 @@
 # =============================================================================
-# my-project .gitignore
+# eks-gitops-platform .gitignore
 # Goal: never commit state, secrets, build junk, or local clutter — but DO
 # commit example tfvars and the Terraform provider lock files (.terraform.lock.hcl).
 # =============================================================================

@@ -23,7 +23,7 @@ resources:
 labels:
   - includeSelectors: false
     pairs:
-      project: my-project
+      project: eks-gitops-platform
       managed-by: argocd
 
 # NOTE: For production you would typically split this into a base + per-env overlay and enable

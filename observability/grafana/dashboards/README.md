@@ -1,6 +1,6 @@
 # Grafana dashboards
 
-Version-controlled Grafana dashboards for `my-project`. They are loaded
+Version-controlled Grafana dashboards for `eks-gitops-platform`. They are loaded
 automatically by the **Grafana dashboard sidecar** (enabled in
 `../../kube-prometheus-stack/values.yaml`) — no manual UI import.
 
@@ -15,7 +15,7 @@ kube-state-metrics / node-exporter metrics, so panels stay fast.
 ## How the sidecar loads them
 
 The sidecar watches the cluster for `ConfigMap`s labelled `grafana_dashboard: "1"`
-and imports their JSON into the `my-project` Grafana folder. The dashboard JSON in
+and imports their JSON into the `eks-gitops-platform` Grafana folder. The dashboard JSON in
 this directory is wrapped into ConfigMaps (one per file) and applied by ArgoCD.
 
 Example ConfigMap wrapper (generated/applied by the GitOps layer):
@@ -29,7 +29,7 @@ metadata:
   labels:
     grafana_dashboard: "1"        # sidecar discovery label
   annotations:
-    grafana_folder: my-project    # target folder
+    grafana_folder: eks-gitops-platform    # target folder
 data:
   demo-api-overview.json: |-
     <contents of demo-api-overview.json>

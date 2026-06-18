@@ -1,6 +1,6 @@
 # Security & compliance posture
 
-`my-project` treats security as a property of the platform, not an afterthought. Controls are layered — IAM, encryption, network, admission, supply chain, and secret management each contribute, and the same intent is enforced both *shift-left* in CI and *at runtime* in the cluster. This document is the consolidated view; each area links to where it actually lives in the repo.
+`eks-gitops-platform` treats security as a property of the platform, not an afterthought. Controls are layered — IAM, encryption, network, admission, supply chain, and secret management each contribute, and the same intent is enforced both *shift-left* in CI and *at runtime* in the cluster. This document is the consolidated view; each area links to where it actually lives in the repo.
 
 ## Threat-model summary
 
@@ -18,9 +18,9 @@
 ## IAM & least privilege
 
 - **IRSA (IAM Roles for Service Accounts).** The `iam-irsa` module is a role factory that scopes every trust policy to an exact `system:serviceaccount:<namespace>:<sa>` subject using `StringEquals` — **no wildcards**. Each workload (AWS Load Balancer Controller, external-dns, Karpenter, ebs-csi) gets only the permissions it needs, shipped as least-privilege JSON/templated policies.
-- **Keyless CI.** `terraform.yml` authenticates to AWS via GitHub OIDC (role `my-project-gha-terraform-plan`), so there are **no long-lived AWS keys** in GitHub. The plan job runs without credentials for static checks and only assumes the role for the plan; fork PRs are skipped to prevent credential exposure.
+- **Keyless CI.** `terraform.yml` authenticates to AWS via GitHub OIDC (role `eks-gitops-platform-gha-terraform-plan`), so there are **no long-lived AWS keys** in GitHub. The plan job runs without credentials for static checks and only assumes the role for the plan; fork PRs are skipped to prevent credential exposure.
 - **Node role.** EKS managed node groups run on a least-privilege node role rather than broad instance permissions.
-- **ArgoCD RBAC.** The `my-project` AppProject defines two roles — read-only and platform-admin (with delete denied) — bound to placeholder IdP groups.
+- **ArgoCD RBAC.** The `eks-gitops-platform` AppProject defines two roles — read-only and platform-admin (with delete denied) — bound to placeholder IdP groups.
 
 ## Encryption
 

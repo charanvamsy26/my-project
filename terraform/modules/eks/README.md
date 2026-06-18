@@ -35,7 +35,7 @@ wrapper module), so every security-relevant decision is explicit and reviewable.
 module "eks" {
   source = "../../modules/eks"
 
-  cluster_name       = "my-project-dev"
+  cluster_name       = "eks-gitops-platform-dev"
   kubernetes_version = "1.30"
 
   vpc_id     = module.vpc.vpc_id

@@ -1,4 +1,4 @@
-# TFLint configuration for my-project.
+# TFLint configuration for eks-gitops-platform.
 #
 # TFLint catches provider-specific mistakes that `terraform validate` cannot:
 # invalid instance types, deprecated arguments, missing tags, etc. The AWS

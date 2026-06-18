@@ -10,7 +10,7 @@ kind: K8sDisallowLatestTag
 metadata:
   name: disallow-latest-tag
   labels:
-    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
     app.kubernetes.io/component: policy
 spec:
   enforcementAction: deny

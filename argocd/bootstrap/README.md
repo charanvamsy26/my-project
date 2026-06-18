@@ -22,7 +22,7 @@ root  (this Application, wave -1)
 
 ```bash
 # Prereq: argocd/install/ has been applied and argocd-server is Ready,
-# and the my-project AppProject exists.
+# and the eks-gitops-platform AppProject exists.
 kubectl apply -f argocd/bootstrap/root-app.yaml
 
 # Watch the platform converge:

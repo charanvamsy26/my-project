@@ -343,5 +343,5 @@
   <text x="20" y="754" font-size="10.5" fill="#5c616a">
     Diagram of dashboard uid `demo-api-slo-burn` (observability/grafana/dashboards/demo-api-slo-burn.json). Numbers are illustrative.
   </text>
-  <text x="1260" y="754" font-size="10.5" fill="#5c616a" text-anchor="end">my-project · local kind demo (cluster: my-project-local)</text>
+  <text x="1260" y="754" font-size="10.5" fill="#5c616a" text-anchor="end">eks-gitops-platform · local kind demo (cluster: eks-gitops-platform-local)</text>
 </svg>

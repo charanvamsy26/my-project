@@ -3,8 +3,8 @@ kind: Namespace
 metadata:
   name: gatekeeper-system
   labels:
-    app.kubernetes.io/part-of: my-project
-    project: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
+    project: eks-gitops-platform
     managed-by: argocd
     environment: dev
     # OPA Gatekeeper's own controllers run here. To prevent Gatekeeper from

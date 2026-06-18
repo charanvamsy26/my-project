@@ -1,7 +1,7 @@
 # demo-api
 
 A small, production-shaped Python **Flask** service used as the reference
-workload for the **my-project** platform. It is intentionally tiny but behaves
+workload for the **eks-gitops-platform** platform. It is intentionally tiny but behaves
 like a real service so it can exercise the full stack: **EKS** scheduling, the
 **AWS Load Balancer Controller** (ALB Ingress), the **Prometheus Operator**
 (ServiceMonitor scraping), **ArgoCD** GitOps delivery, and **OPA Gatekeeper**

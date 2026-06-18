@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# lib.sh — shared helpers for the my-project LOCAL demo scripts.
+# lib.sh — shared helpers for the eks-gitops-platform LOCAL demo scripts.
 # -----------------------------------------------------------------------------
 # Sourced by up.sh / demo.sh / capture-screenshots.sh / down.sh. NOT meant to be
 # run directly. Provides:
@@ -18,7 +18,7 @@
 # ---- Shared LOCAL-DEMO CONSTANTS (single source of truth) -------------------
 # Override any of these from the environment before calling a script if needed,
 # but the defaults are what the whole demo is wired to.
-CLUSTER_NAME="${CLUSTER_NAME:-my-project-local}"
+CLUSTER_NAME="${CLUSTER_NAME:-eks-gitops-platform-local}"
 KUBE_CONTEXT="${KUBE_CONTEXT:-kind-${CLUSTER_NAME}}"
 
 # Namespaces.

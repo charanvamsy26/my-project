@@ -10,7 +10,7 @@ exactly once per cluster. Everything afterward is reconciled by the root app (`.
 |-------------------|---------|
 | `namespace.yaml`  | The `argocd` namespace, labelled with Pod Security Admission + project tags. |
 | `kustomization.yaml` | Installs the ArgoCD control plane by overlaying our namespace onto the **pinned** upstream stable install manifests (`v2.13.2`). Bump the `?ref=` tag to upgrade. |
-| `appproject.yaml` | The `my-project` `AppProject`: restricts source repos, destination namespaces, allowed resource kinds, and project RBAC. Every Application references `project: my-project`. |
+| `appproject.yaml` | The `eks-gitops-platform` `AppProject`: restricts source repos, destination namespaces, allowed resource kinds, and project RBAC. Every Application references `project: eks-gitops-platform`. |
 
 ## Usage
 

@@ -12,7 +12,7 @@
       }
     ]
   },
-  "description": "Cluster health for the my-project EKS clusters: nodes, saturation, restarts, target up-ness.",
+  "description": "Cluster health for the eks-gitops-platform EKS clusters: nodes, saturation, restarts, target up-ness.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -21,7 +21,7 @@
   "liveNow": false,
   "refresh": "30s",
   "schemaVersion": 39,
-  "tags": ["my-project", "kubernetes", "cluster"],
+  "tags": ["eks-gitops-platform", "kubernetes", "cluster"],
   "templating": {
     "list": [
       {

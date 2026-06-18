@@ -1,4 +1,4 @@
-# Prod overlay for demo-api (EKS cluster: my-project-prod).
+# Prod overlay for demo-api (EKS cluster: eks-gitops-platform-prod).
 # Hardened for availability: HA replicas, autoscaling, strict PDB, tighter
 # resource caps with an explicit CPU limit, and multi-AZ hard spread.
 # Usage:
@@ -44,8 +44,8 @@ ingress:
     alb.ingress.kubernetes.io/success-codes: "200"
     # WAF + access logs are good prod hygiene; wire to real ARNs/buckets.
     alb.ingress.kubernetes.io/load-balancer-attributes: >-
-      access_logs.s3.enabled=true,access_logs.s3.bucket=my-project-alb-logs,access_logs.s3.prefix=demo-api
-    alb.ingress.kubernetes.io/tags: Project=my-project,ManagedBy=terraform,Environment=prod
+      access_logs.s3.enabled=true,access_logs.s3.bucket=eks-gitops-platform-alb-logs,access_logs.s3.prefix=demo-api
+    alb.ingress.kubernetes.io/tags: Project=eks-gitops-platform,ManagedBy=terraform,Environment=prod
     alb.ingress.kubernetes.io/certificate-arn: "<PROD_ACM_CERTIFICATE_ARN>"
 
 config:

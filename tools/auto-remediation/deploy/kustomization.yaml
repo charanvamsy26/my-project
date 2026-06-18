@@ -20,8 +20,8 @@ metadata:
 labels:
   - includeSelectors: false
     pairs:
-      app.kubernetes.io/part-of: my-project
-      project: my-project
+      app.kubernetes.io/part-of: eks-gitops-platform
+      project: eks-gitops-platform
 
 resources:
   - namespace.yaml

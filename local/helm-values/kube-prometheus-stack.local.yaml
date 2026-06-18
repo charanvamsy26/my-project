@@ -1,5 +1,5 @@
 # =============================================================================
-# kube-prometheus-stack — LOCAL overlay for kind `my-project-local` (NO AWS)
+# kube-prometheus-stack — LOCAL overlay for kind `eks-gitops-platform-local` (NO AWS)
 # -----------------------------------------------------------------------------
 # Chart   : prometheus-community/kube-prometheus-stack (upstream)
 # Release : MUST be `kube-prometheus-stack` (fullnameOverride is inherited from
@@ -50,9 +50,9 @@ prometheus:
         release: kube-prometheus-stack
 
     # -- Local-only external labels so panels can tell laptop runs apart from
-    #    dev/prod. (Cloud sets cluster/environment to my-project/dev.)
+    #    dev/prod. (Cloud sets cluster/environment to eks-gitops-platform/dev.)
     externalLabels:
-      cluster: my-project-local
+      cluster: eks-gitops-platform-local
       environment: local
 
     # -- Persistence OFF: no PVC, so Prometheus falls back to an emptyDir (kind
@@ -140,7 +140,7 @@ grafana:
       provider:
         foldersFromFilesStructure: true
       annotations:
-        grafana_folder: my-project
+        grafana_folder: eks-gitops-platform
     datasources:
       enabled: true
       label: grafana_datasource

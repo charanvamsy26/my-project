@@ -36,9 +36,9 @@ metadata:
     # Discovery contract: the Prometheus Operator only adopts PrometheusRules that
     # carry this release label (matches recording-rules.yaml / slo-rules.yaml).
     release: kube-prometheus-stack
-    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
     app.kubernetes.io/component: slo-burn-demo
-    project: my-project
+    project: eks-gitops-platform
     slo: demo-api-availability
 spec:
   groups:

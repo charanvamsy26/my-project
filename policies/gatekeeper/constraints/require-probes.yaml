@@ -11,11 +11,11 @@ kind: K8sRequireProbes
 metadata:
   name: require-liveness-readiness-probes
   labels:
-    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
     app.kubernetes.io/component: policy
   annotations:
     # Promotion checklist tracked here so reviewers know the rollout intent.
-    policy.my-project.io/promotion: "dryrun -> deny once audit totalViolations == 0 in dev+prod"
+    policy.eks-gitops-platform.io/promotion: "dryrun -> deny once audit totalViolations == 0 in dev+prod"
 spec:
   enforcementAction: dryrun
   match:

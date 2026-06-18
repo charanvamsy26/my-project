@@ -1,4 +1,4 @@
-# my-project — developer/operator entrypoint.
+# eks-gitops-platform — developer/operator entrypoint.
 #
 # Thin, discoverable wrappers around terraform / helm / docker / python so the
 # same commands run locally and in CI. Run `make help` for the menu.
@@ -118,7 +118,7 @@ lint: tf-validate tf-lint helm-lint app-test ## Run the full local lint suite.
 # ============================================================================
 # LOCAL DEMO (kind, NO AWS) — one-command portfolio demo
 # ----------------------------------------------------------------------------
-# Stands up the whole platform on a local kind cluster (`my-project-local`):
+# Stands up the whole platform on a local kind cluster (`eks-gitops-platform-local`):
 # demo-api + kube-prometheus-stack + OPA Gatekeeper, then drives a reliability
 # story (burn the SLO error budget, then self-heal) and captures dashboards.
 #
@@ -152,7 +152,7 @@ demo-down: ## [demo] Tear down the local demo: delete the kind cluster + port-fo
 .PHONY: demo-help
 demo-help: ## [demo] Show the local-demo quickstart (what each demo-* target does).
 	@echo ""
-	@echo "  my-project LOCAL DEMO (kind cluster 'my-project-local', NO AWS)"
+	@echo "  eks-gitops-platform LOCAL DEMO (kind cluster 'eks-gitops-platform-local', NO AWS)"
 	@echo "  --------------------------------------------------------------"
 	@echo "  Prereqs: docker, kind, kubectl, helm  (the scripts preflight-check these)"
 	@echo ""

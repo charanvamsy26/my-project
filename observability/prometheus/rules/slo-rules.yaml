@@ -33,8 +33,8 @@ metadata:
   namespace: monitoring
   labels:
     release: kube-prometheus-stack
-    app.kubernetes.io/part-of: my-project
-    project: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
+    project: eks-gitops-platform
     slo: demo-api-availability
 spec:
   groups:

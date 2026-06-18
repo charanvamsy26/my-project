@@ -61,7 +61,7 @@ trap cleanup EXIT INT TERM
 
 main() {
   hr
-  log "my-project LOCAL demo — RELIABILITY STORY (burn the budget, then heal)"
+  log "eks-gitops-platform LOCAL demo — RELIABILITY STORY (burn the budget, then heal)"
   hr
 
   preflight curl
@@ -182,7 +182,7 @@ run_auto_remediation() {
   # decisions to stdout/stderr. We run it WITHOUT a pipe (so $! is the real PID,
   # not sed's) and stream its log via a background tail.
   log "starting tools/auto-remediation (PROM_URL=${PROM_URL}, NAMESPACE=${NS_APP}, DEPLOYMENT=${RELEASE_APP})"
-  local rem_log="${TMPDIR:-/tmp}/my-project-remediator.$$.log"
+  local rem_log="${TMPDIR:-/tmp}/eks-gitops-platform-remediator.$$.log"
   : >"${rem_log}"
   (
     cd "${REMEDIATOR_DIR}"

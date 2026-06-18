@@ -11,7 +11,7 @@ kind: ConstraintTemplate
 metadata:
   name: k8srequireresources
   labels:
-    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
     app.kubernetes.io/component: policy
   annotations:
     description: >-

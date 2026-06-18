@@ -43,9 +43,9 @@ metadata:
   labels:
     app.kubernetes.io/name: k6-load-test
     app.kubernetes.io/component: load-test
-    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
     app.kubernetes.io/managed-by: kubectl
-    project: my-project
+    project: eks-gitops-platform
 data:
   # NOTE: keep these in sync with the files under load-test/k6/. They are
   # inlined here so `kubectl apply -f k6-job.yaml` is self-contained. If you
@@ -181,9 +181,9 @@ metadata:
   labels:
     app.kubernetes.io/name: k6-load-test
     app.kubernetes.io/component: load-test
-    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
     app.kubernetes.io/managed-by: kubectl
-    project: my-project
+    project: eks-gitops-platform
 spec:
   # Do not retry: a load run is a single observation. Retrying would double the
   # offered load and muddy the metrics.
@@ -198,9 +198,9 @@ spec:
       labels:
         app.kubernetes.io/name: k6-load-test
         app.kubernetes.io/component: load-test
-        app.kubernetes.io/part-of: my-project
+        app.kubernetes.io/part-of: eks-gitops-platform
         app.kubernetes.io/managed-by: kubectl
-        project: my-project
+        project: eks-gitops-platform
     spec:
       restartPolicy: Never
       # No API access needed for a load generator.

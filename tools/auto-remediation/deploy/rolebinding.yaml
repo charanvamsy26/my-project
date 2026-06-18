@@ -8,10 +8,10 @@ metadata:
   namespace: demo
   labels:
     app.kubernetes.io/name: auto-remediation
-    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
     app.kubernetes.io/component: rbac
     app.kubernetes.io/managed-by: kustomize
-    project: my-project
+    project: eks-gitops-platform
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role

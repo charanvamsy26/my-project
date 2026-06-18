@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "project" {
   description = "Project name for naming/tagging."
   type        = string
-  default     = "my-project"
+  default     = "eks-gitops-platform"
 }
 
 variable "environment" {

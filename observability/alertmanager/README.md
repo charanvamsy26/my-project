@@ -6,10 +6,10 @@ Routing, receivers, and inhibition for the alerts defined in
 ## Routing tree
 
 ```
-route (default → #my-project-alerts, warnings)
+route (default → #eks-gitops-platform-alerts, warnings)
 ├── alertname=Watchdog                    → null  (consumed by external dead-man's-switch)
-├── severity=critical                     → #my-project-alerts-critical   (page, repeat 1h)
-└── slo=~".+"                             → #my-project-slo               (SLO burn threads)
+├── severity=critical                     → #eks-gitops-platform-alerts-critical   (page, repeat 1h)
+└── slo=~".+"                             → #eks-gitops-platform-slo               (SLO burn threads)
 ```
 
 - **group_by** keeps one incident in one Slack thread instead of N messages.

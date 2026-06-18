@@ -1,4 +1,4 @@
-# AppProject "my-project" — the security boundary every Application in this repo belongs to.
+# AppProject "eks-gitops-platform" — the security boundary every Application in this repo belongs to.
 #
 # An AppProject is ArgoCD's tenancy/guardrail primitive. By restricting which Git repos an app
 # may pull from, which clusters/namespaces it may deploy to, and which resource kinds it may
@@ -7,25 +7,25 @@
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: my-project
+  name: eks-gitops-platform
   namespace: argocd
   # Keep the project from being deleted out from under running apps; ArgoCD will block deletion
   # while child Applications still reference it.
   finalizers:
     - resources-finalizer.argocd.argoproj.io
   labels:
-    project: my-project
+    project: eks-gitops-platform
     managed-by: argocd
 spec:
   description: >-
-    Production-grade reference platform (my-project). Hosts platform add-ons
+    Production-grade reference platform (eks-gitops-platform). Hosts platform add-ons
     (observability, policy, ingress) and the demo-api sample workload.
 
   # --- Source restriction: only our own repo may be a source. -----------------------------
   # No app in this project can sync from any other Git host/org — eliminates a whole class of
   # supply-chain attacks via PRs that swap repoURL.
   sourceRepos:
-    - https://github.com/charanvamsy26/my-project.git
+    - https://github.com/charanvamsy26/eks-gitops-platform.git
     # Helm repositories used by child apps (pinned charts pull from these registries).
     - https://prometheus-community.github.io/helm-charts
     - https://open-policy-agent.github.io/gatekeeper/charts
@@ -85,9 +85,9 @@ spec:
   roles:
     # Read-only role for the wider engineering org — can see app state, can't mutate.
     - name: read-only
-      description: View-only access to all my-project applications.
+      description: View-only access to all eks-gitops-platform applications.
       policies:
-        - p, proj:my-project:read-only, applications, get, my-project/*, allow
+        - p, proj:eks-gitops-platform:read-only, applications, get, eks-gitops-platform/*, allow
       groups:
         - charanvamsy26:engineering
 
@@ -96,11 +96,11 @@ spec:
     - name: platform-admin
       description: Sync/override for the platform team; no Application deletion.
       policies:
-        - p, proj:my-project:platform-admin, applications, get, my-project/*, allow
-        - p, proj:my-project:platform-admin, applications, sync, my-project/*, allow
-        - p, proj:my-project:platform-admin, applications, action/*, my-project/*, allow
-        - p, proj:my-project:platform-admin, applications, override, my-project/*, allow
-        - p, proj:my-project:platform-admin, applications, delete, my-project/*, deny
+        - p, proj:eks-gitops-platform:platform-admin, applications, get, eks-gitops-platform/*, allow
+        - p, proj:eks-gitops-platform:platform-admin, applications, sync, eks-gitops-platform/*, allow
+        - p, proj:eks-gitops-platform:platform-admin, applications, action/*, eks-gitops-platform/*, allow
+        - p, proj:eks-gitops-platform:platform-admin, applications, override, eks-gitops-platform/*, allow
+        - p, proj:eks-gitops-platform:platform-admin, applications, delete, eks-gitops-platform/*, deny
       groups:
         - charanvamsy26:platform-sre
 

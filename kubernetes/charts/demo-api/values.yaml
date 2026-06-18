@@ -98,7 +98,7 @@ ingress:
     alb.ingress.kubernetes.io/healthcheck-path: /healthz
     alb.ingress.kubernetes.io/healthcheck-port: traffic-port
     alb.ingress.kubernetes.io/success-codes: "200"
-    alb.ingress.kubernetes.io/tags: Project=my-project,ManagedBy=terraform
+    alb.ingress.kubernetes.io/tags: Project=eks-gitops-platform,ManagedBy=terraform
     # -- ACM certificate ARN for HTTPS. Must be set for the HTTPS listener.
     alb.ingress.kubernetes.io/certificate-arn: "<ACM_CERTIFICATE_ARN>"
   # -- Optional extra TLS config (usually unnecessary with ACM on the ALB).

@@ -17,11 +17,11 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "0"
   labels:
-    project: my-project
+    project: eks-gitops-platform
     managed-by: argocd
     component: policy
 spec:
-  project: my-project
+  project: eks-gitops-platform
 
   sources:
     # 1) Gatekeeper engine chart, version-pinned.
@@ -33,7 +33,7 @@ spec:
         valueFiles:
           - $values/policies/gatekeeper/values.yaml
     # 2) Our repo, exposed as $values so the chart reads our hardened config from Git.
-    - repoURL: https://github.com/charanvamsy26/my-project.git
+    - repoURL: https://github.com/charanvamsy26/eks-gitops-platform.git
       targetRevision: main
       ref: values
 

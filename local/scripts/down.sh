@@ -4,7 +4,7 @@
 # -----------------------------------------------------------------------------
 # Idempotent: safe to run whether or not the cluster exists. Steps:
 #   1. kill any leftover kubectl port-forwards for this cluster (from up/demo runs)
-#   2. delete the kind cluster `my-project-local` (no-op if it's already gone)
+#   2. delete the kind cluster `eks-gitops-platform-local` (no-op if it's already gone)
 #
 # The locally-built image (ghcr.io/charanvamsy26/demo-api:local) is left in your
 # Docker engine so a subsequent `make demo-up` rebuilds/reuses it quickly. Pass
@@ -23,7 +23,7 @@ REMOVE_IMAGE="${REMOVE_IMAGE:-false}"
 
 main() {
   hr
-  log "my-project LOCAL demo — tear-down (cluster=${CLUSTER_NAME})"
+  log "eks-gitops-platform LOCAL demo — tear-down (cluster=${CLUSTER_NAME})"
   hr
 
   # kind + docker are the only hard requirements for teardown.

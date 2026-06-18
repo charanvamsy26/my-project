@@ -1,5 +1,5 @@
 variable "name" {
-  description = "Base name for the VPC and all child resources (e.g. my-project-dev)."
+  description = "Base name for the VPC and all child resources (e.g. eks-gitops-platform-dev)."
   type        = string
 }
 

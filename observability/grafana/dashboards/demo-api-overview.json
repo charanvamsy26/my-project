@@ -12,7 +12,7 @@
       }
     ]
   },
-  "description": "RED metrics, SLO compliance and 30-day error budget for demo-api (my-project).",
+  "description": "RED metrics, SLO compliance and 30-day error budget for demo-api (eks-gitops-platform).",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -21,7 +21,7 @@
   "liveNow": false,
   "refresh": "30s",
   "schemaVersion": 39,
-  "tags": ["my-project", "demo-api", "red", "slo"],
+  "tags": ["eks-gitops-platform", "demo-api", "red", "slo"],
   "templating": {
     "list": [
       {

@@ -1,5 +1,5 @@
 # =============================================================================
-# demo-api — LOCAL overlay for the kind cluster `my-project-local` (NO AWS)
+# demo-api — LOCAL overlay for the kind cluster `eks-gitops-platform-local` (NO AWS)
 # -----------------------------------------------------------------------------
 # Chart  : kubernetes/charts/demo-api
 # Render : ~/.local/bin/helm template demo kubernetes/charts/demo-api \

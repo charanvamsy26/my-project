@@ -13,12 +13,12 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
-  name: my-project-alerts
+  name: eks-gitops-platform-alerts
   namespace: monitoring
   labels:
     release: kube-prometheus-stack
-    app.kubernetes.io/part-of: my-project
-    project: my-project
+    app.kubernetes.io/part-of: eks-gitops-platform
+    project: eks-gitops-platform
 spec:
   groups:
     # -------------------------------------------------------------------------

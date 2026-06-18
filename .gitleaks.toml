@@ -1,4 +1,4 @@
-# Gitleaks configuration for my-project.
+# Gitleaks configuration for eks-gitops-platform.
 #
 # We extend the upstream default ruleset (covers AWS keys, GitHub PATs, private
 # keys, JWTs, generic high-entropy strings, etc.) and add an allowlist for known
@@ -7,7 +7,7 @@
 # Run locally:  gitleaks detect --config .gitleaks.toml --redact
 # Pre-commit:   see .pre-commit-config.yaml (gitleaks hook)
 
-title = "my-project gitleaks config"
+title = "eks-gitops-platform gitleaks config"
 
 # Inherit all upstream rules; we only add allowlisting below.
 [extend]

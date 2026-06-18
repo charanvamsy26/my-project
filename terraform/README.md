@@ -1,4 +1,4 @@
-# my-project — Terraform Infrastructure
+# eks-gitops-platform — Terraform Infrastructure
 
 Production-grade reference platform on **AWS** provisioned entirely with **Terraform**.
 This directory is the single source of truth for all cloud infrastructure: networking
@@ -60,7 +60,7 @@ Authenticate to AWS however your org prefers (SSO profile, assumed role, static 
 for local dev). All commands below assume `AWS_PROFILE` / `AWS_REGION` are set, e.g.:
 
 ```bash
-export AWS_PROFILE=my-project-admin
+export AWS_PROFILE=eks-gitops-platform-admin
 export AWS_REGION=us-east-1
 ```
 
@@ -82,9 +82,9 @@ terraform apply
 
 This creates:
 
-- **S3 bucket** `my-project-tfstate-<account_id>` — versioned, SSE encrypted,
+- **S3 bucket** `eks-gitops-platform-tfstate-<account_id>` — versioned, SSE encrypted,
   public access fully blocked, with a lifecycle policy on old versions.
-- **DynamoDB table** `my-project-tf-locks` — used for state locking (PAY_PER_REQUEST).
+- **DynamoDB table** `eks-gitops-platform-tf-locks` — used for state locking (PAY_PER_REQUEST).
 
 The `<account_id>` suffix guarantees global S3-name uniqueness without leaking which
 account it belongs to in a guessable way.
@@ -111,7 +111,7 @@ terraform apply          # create/update infrastructure
 After `apply`, wire up `kubectl`:
 
 ```bash
-aws eks update-kubeconfig --region us-east-1 --name my-project-dev   # or my-project-prod
+aws eks update-kubeconfig --region us-east-1 --name eks-gitops-platform-dev   # or eks-gitops-platform-prod
 kubectl get nodes
 ```
 
@@ -125,7 +125,7 @@ ebs-csi) can consume them.
 
 | Concern             | dev                        | prod                              |
 |---------------------|----------------------------|-----------------------------------|
-| Cluster name        | `my-project-dev`           | `my-project-prod`                 |
+| Cluster name        | `eks-gitops-platform-dev`           | `eks-gitops-platform-prod`                 |
 | NAT gateways        | single (cost saving)       | one per AZ (HA)                   |
 | Node group size     | smaller (`t3.large`), 2-4  | larger (`m5.xlarge`), 3-9        |
 | Aurora              | 1 instance (Serverless-ish)| writer + reader, multi-AZ         |
@@ -137,7 +137,7 @@ ebs-csi) can consume them.
 ## Conventions
 
 - **Terraform variables:** `snake_case`. **K8s/file names:** `kebab-case`.
-- **Tags everywhere:** every resource carries `Project = my-project`,
+- **Tags everywhere:** every resource carries `Project = eks-gitops-platform`,
   `Environment = <env>`, `ManagedBy = terraform` via the provider `default_tags` block.
 - **No `:latest` images, no hardcoded secrets.** RDS credentials are generated and
   stored in AWS Secrets Manager; volumes/state/secrets are encrypted at rest.

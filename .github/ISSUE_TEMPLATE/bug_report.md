@@ -22,7 +22,7 @@ assignees: charanvamsy26
 
 ## Environment
 
-- **Environment:** <!-- dev (my-project-dev) / prod (my-project-prod) -->
+- **Environment:** <!-- dev (eks-gitops-platform-dev) / prod (eks-gitops-platform-prod) -->
 - **Region:** us-east-1
 - **Component version / image tag:** <!-- e.g. ghcr.io/charanvamsy26/demo-api:<tag> -->
 

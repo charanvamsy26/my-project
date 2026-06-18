@@ -132,7 +132,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Trivy image scan (SARIF)
-        uses: aquasecurity/trivy-action@v0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           # Scan the first generated tag; all tags point at the same image id.
@@ -155,7 +155,7 @@ jobs:
       - name: Trivy gate (fail on HIGH/CRITICAL)
         # Re-run in table mode with exit-code so the job fails on real findings;
         # the SARIF upload above always succeeds for the security dashboard.
-        uses: aquasecurity/trivy-action@v0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: ${{ env.IMAGE }}:sha-${{ github.sha }}

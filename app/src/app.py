@@ -266,7 +266,9 @@ def create_app() -> Flask:
         # Skip the metrics endpoint itself to avoid self-referential noise.
         endpoint = request.endpoint or "unknown"
         if endpoint != "metrics":
-            elapsed = time.perf_counter() - getattr(g, "start_time", time.perf_counter())
+            elapsed = time.perf_counter() - getattr(
+                g, "start_time", time.perf_counter()
+            )
             # Use the matched route rule for a stable, low-cardinality `path`.
             route = request.url_rule.rule if request.url_rule else request.path
             _record(route, response.status_code, elapsed)
@@ -397,7 +399,7 @@ def _check_chaos_auth() -> Optional[tuple]:
     if presented is None:
         auth = request.headers.get("Authorization", "")
         if auth.startswith("Bearer "):
-            presented = auth[len("Bearer "):]
+            presented = auth[len("Bearer ") :]
 
     if presented != CHAOS_ADMIN_TOKEN:
         return (jsonify({"error": "unauthorized"}), 401)

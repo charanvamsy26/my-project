@@ -139,7 +139,9 @@ def test_readyz_with_db_failure_returns_503(client, monkeypatch):
     # reimporting, to exercise the degraded readiness path.
     import app as app_module
 
-    monkeypatch.setattr(app_module, "DATABASE_URL", "postgresql://bad:bad@127.0.0.1:1/none")
+    monkeypatch.setattr(
+        app_module, "DATABASE_URL", "postgresql://bad:bad@127.0.0.1:1/none"
+    )
     monkeypatch.setattr(
         app_module,
         "_check_database",
@@ -182,7 +184,7 @@ def test_chaos_error_rate_forces_500_and_is_counted(client):
         and 'path="/"' in line
         and 'status="500"' in line
     ]
-    assert burn_series, "injected 500 must produce a status=\"500\" counter series"
+    assert burn_series, 'injected 500 must produce a status="500" counter series'
 
 
 def test_chaos_latency_is_applied_and_observed(client):
@@ -227,8 +229,7 @@ def test_admin_chaos_requires_correct_token(client, monkeypatch):
     # Missing/wrong token -> 401.
     assert client.get("/admin/chaos").status_code == 401
     assert (
-        client.get("/admin/chaos", headers={"X-Chaos-Token": "nope"}).status_code
-        == 401
+        client.get("/admin/chaos", headers={"X-Chaos-Token": "nope"}).status_code == 401
     )
 
 
@@ -261,7 +262,5 @@ def test_admin_chaos_accepts_bearer_token(client, monkeypatch):
     import app as app_module
 
     monkeypatch.setattr(app_module, "CHAOS_ADMIN_TOKEN", "s3cret")
-    resp = client.get(
-        "/admin/chaos", headers={"Authorization": "Bearer s3cret"}
-    )
+    resp = client.get("/admin/chaos", headers={"Authorization": "Bearer s3cret"})
     assert resp.status_code == 200

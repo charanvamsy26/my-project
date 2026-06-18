@@ -217,10 +217,10 @@ affinity: {}
 extraVolumes: []
 extraVolumeMounts: []
 
-# -- Standard labels applied to all resources, aligned with the project SPEC.
-# Environment is overridden per overlay.
-commonLabels:
-  app.kubernetes.io/part-of: my-project
-  project: my-project
-  managed-by: helm
+# -- Extra labels applied to all resources, merged on top of the standard set.
+# The SPEC labels (app.kubernetes.io/part-of, project, managed-by) are already
+# emitted by the chart's labels helper, so do NOT repeat them here or rendering
+# fails with duplicate keys. Use this only for additional org-specific labels.
+commonLabels: {}
+# -- Environment label value; overridden per overlay (values-dev/prod.yaml).
 environment: dev

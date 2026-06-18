@@ -6,6 +6,8 @@
 # that guarantees demo-api keeps passing as the policy evolves.
 package kubernetes
 
+import future.keywords.every
+
 import future.keywords.if
 import future.keywords.in
 

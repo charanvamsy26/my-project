@@ -13,6 +13,7 @@
 package terraform.security_groups
 
 import future.keywords.contains
+import future.keywords.every
 import future.keywords.if
 import future.keywords.in
 

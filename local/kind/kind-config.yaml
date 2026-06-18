@@ -1,0 +1,90 @@
+# =============================================================================
+# kind cluster config — my-project LOCAL demo (NO AWS)
+# -----------------------------------------------------------------------------
+# Purpose : Stand up a throwaway, laptop-friendly Kubernetes cluster that mirrors
+#           the my-project platform (demo-api + kube-prometheus-stack + Gatekeeper)
+#           without any cloud resources (no EKS, no ALB, no RDS, no EBS).
+#
+# Create  : kind create cluster --config local/kind/kind-config.yaml
+# Verify  : kubectl cluster-info --context kind-my-project-local
+# Delete  : kind delete cluster --name my-project-local
+#
+# Access  : Services are reached with `kubectl port-forward` (see local/README),
+#           NOT a cloud LoadBalancer/ALB. That keeps this file minimal and avoids
+#           host-port conflicts, so `extraPortMappings` are intentionally omitted
+#           (see the commented block at the bottom if you ever add an ingress).
+# =============================================================================
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+
+# Cluster name. Must be exactly `my-project-local` — scripts, the kube-context
+# (`kind-my-project-local`), and the README all reference this name.
+name: my-project-local
+
+# -----------------------------------------------------------------------------
+# Nodes
+# -----------------------------------------------------------------------------
+# Kubernetes 1.30 to match the EKS target (Chart.yaml pins kubeVersion >=1.30.0).
+# The node image is pinned to an immutable digest-bearing tag so the cluster is
+# reproducible. Bump the patch (v1.30.x) as kind publishes new images; pick the
+# image that ships WITH your installed kind version (see `kind version`) — the
+# digest below is for kindest/node:v1.30.13 (kind v0.27.0). Update both together.
+nodes:
+  # --- Control plane --------------------------------------------------------
+  # A single control-plane node also schedules workloads on kind (the default
+  # NoSchedule taint is removed), so for the demo this one node can run
+  # demo-api, the monitoring stack, and Gatekeeper. This keeps memory/CPU use on
+  # a laptop low. Add the worker below if you want a more realistic topology.
+  - role: control-plane
+    image: kindest/node:v1.30.13@sha256:8673291894dc400e0fb4f57243f5fdc6e355ceaa765505e0e73941aa1b6e0b80
+    # kubeadm patches: nothing cloud-specific needed for the demo. (Left empty.)
+
+  # --- Worker (OPTIONAL) ----------------------------------------------------
+  # Uncomment to get a 2-node cluster (1 control-plane + 1 worker). This lets you
+  # demo PodDisruptionBudgets, topologySpreadConstraints, and node drains more
+  # realistically. It also roughly doubles the resource footprint, so leave it
+  # commented on small laptops. NOTE: the demo-api LOCAL overlay sets replicas: 1
+  # and disables the PDB, so a single node is sufficient for the happy path.
+  # - role: worker
+  #   image: kindest/node:v1.30.13@sha256:8673291894dc400e0fb4f57243f5fdc6e355ceaa765505e0e73941aa1b6e0b80
+
+# -----------------------------------------------------------------------------
+# Networking
+# -----------------------------------------------------------------------------
+networking:
+  # Use the kind defaults. kindnet is the built-in CNI; it supports the
+  # NetworkPolicy objects emitted by the demo-api chart only partially, but the
+  # LOCAL overlay does not depend on enforcement for the happy path.
+  #
+  # Pod/Service CIDRs are left at kind defaults (10.244.0.0/16 / 10.96.0.0/16).
+  # disableDefaultCNI: false  # keep kindnet; do NOT disable for the demo.
+
+  # apiServerAddress/apiServerPort are left default (127.0.0.1, random port) so
+  # the cluster binds to loopback only — fine for a single-user laptop.
+
+# -----------------------------------------------------------------------------
+# extraPortMappings (OPTIONAL — only needed if you choose an Ingress)
+# -----------------------------------------------------------------------------
+# We prefer `kubectl port-forward` for the demo, so NO host ports are mapped by
+# default (nothing to conflict with on your machine, and no privileged :80/:443).
+#
+# If you later install an ingress controller (e.g. ingress-nginx) instead of
+# port-forward, you must (a) add the `ingress-ready=true` label + the mappings
+# below to the control-plane node, and (b) set ingress.enabled=true with
+# className: nginx in a values overlay. Example:
+#
+#   - role: control-plane
+#     image: kindest/node:v1.30.13@sha256:8673291894dc...
+#     kubeadmConfigPatches:
+#       - |
+#         kind: InitConfiguration
+#         nodeRegistration:
+#           kubeletExtraArgs:
+#             node-labels: "ingress-ready=true"
+#     extraPortMappings:
+#       - containerPort: 80    # ingress-nginx HTTP   -> host :80
+#         hostPort: 80
+#         protocol: TCP
+#       - containerPort: 443   # ingress-nginx HTTPS  -> host :443
+#         hostPort: 443
+#         protocol: TCP

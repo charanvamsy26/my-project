@@ -1,0 +1,183 @@
+# =============================================================================
+# kube-prometheus-stack — LOCAL overlay for kind `my-project-local` (NO AWS)
+# -----------------------------------------------------------------------------
+# Chart   : prometheus-community/kube-prometheus-stack (upstream)
+# Release : MUST be `kube-prometheus-stack` (fullnameOverride is inherited from
+#           the cloud values, and demo-api's ServiceMonitor carries
+#           `release: kube-prometheus-stack` — that label is the scrape contract).
+#
+# This file is designed to be applied AS A SECOND `-f` ON TOP OF the cloud values
+# so the shared discovery contract (release-label selectors, sidecar, rule/SM
+# selectors) is reused and only the laptop-hostile bits are overridden:
+#
+#   helm upgrade --install kube-prometheus-stack \
+#     prometheus-community/kube-prometheus-stack \
+#     -n monitoring --create-namespace \
+#     -f observability/kube-prometheus-stack/values.yaml \
+#     -f local/helm-values/kube-prometheus-stack.local.yaml
+#
+# What it changes vs the cloud values (and why):
+#   * Persistence OFF everywhere (Prometheus/Alertmanager/Grafana) -> emptyDir,
+#     because kind has no gp3 EBS CSI; a PVC would sit Pending forever.
+#   * Tiny retention + small resource requests so it fits a laptop.
+#   * Grafana adminPassword set inline to "admin" (LOCAL-ONLY credential) instead
+#     of the AWS-Secrets-Manager-backed existingSecret, which does not exist here.
+#   * serviceMonitorSelectorNilUsesHelmValues: false re-affirmed so our
+#     demo-api ServiceMonitor is scraped.
+#   * EKS-managed control-plane assumptions are relaxed (kube-controller-manager /
+#     scheduler / etcd ARE scrapeable on kind, so re-enable them).
+# Everything not mentioned here is inherited from the cloud values.yaml.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Prometheus
+# -----------------------------------------------------------------------------
+prometheus:
+  prometheusSpec:
+    # -- Tiny retention for a demo; no need for the 30d SLO window on a laptop.
+    #    (Cloud: 30d / 45GB.)
+    retention: 2d
+    # -- Drop the retentionSize cap; with emptyDir there is no fixed-size PVC to
+    #    protect, and an empty string disables the size-based retention.
+    retentionSize: ""
+
+    # -- Re-affirm the discovery contract: scrape ServiceMonitors that opt in with
+    #    `release: kube-prometheus-stack` (demo-api's local overlay stamps it).
+    #    Inherited from cloud values, restated so the local intent is explicit.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelector:
+      matchLabels:
+        release: kube-prometheus-stack
+
+    # -- Local-only external labels so panels can tell laptop runs apart from
+    #    dev/prod. (Cloud sets cluster/environment to my-project/dev.)
+    externalLabels:
+      cluster: my-project-local
+      environment: local
+
+    # -- Persistence OFF: no PVC, so Prometheus falls back to an emptyDir (kind
+    #    has no EBS CSI -> a gp3 PVC would hang Pending). emptyDir is wiped on pod
+    #    restart, which is fine for a demo.
+    #    CRITICAL: this MUST be `null`, not `{}`. Helm `coalesce` deep-merges maps,
+    #    so an empty map `{}` would NOT delete the inherited volumeClaimTemplate
+    #    from the cloud values (verified) and a PVC would still be requested.
+    #    Explicit `null` deletes the key, leaving no storageSpec -> emptyDir.
+    storageSpec: null
+
+    # -- Laptop-sized requests/limits (cloud asks for 500m/2Gi .. 2/6Gi).
+    resources:
+      requests:
+        cpu: 100m
+        memory: 400Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+
+    replicas: 1
+
+# -----------------------------------------------------------------------------
+# Alertmanager — keep it running but cheap and stateless on kind.
+# -----------------------------------------------------------------------------
+alertmanager:
+  alertmanagerSpec:
+    replicas: 1
+    # -- Persistence OFF: emptyDir instead of the gp3 PVC (no EBS CSI on kind).
+    #    Like storageSpec above, this MUST be `null` (not `{}`) so Helm coalesce
+    #    DELETES the inherited volumeClaimTemplate; an empty map would keep it and
+    #    leave a PVC stuck Pending.
+    storage: null
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+# -----------------------------------------------------------------------------
+# Grafana
+# -----------------------------------------------------------------------------
+grafana:
+  enabled: true
+
+  # -- LOCAL-ONLY admin credential. On kind the AWS-Secrets-Manager-backed
+  #    `grafana-admin-credentials` Secret does not exist, so we set the password
+  #    inline. This is a throwaway laptop credential — NEVER use a plaintext
+  #    adminPassword in dev/prod (the cloud values use admin.existingSecret).
+  #    Login at http://localhost:3000 with  admin / admin  after port-forward.
+  adminPassword: "admin"
+  # -- Neutralise the inherited existingSecret block so the chart does not try to
+  #    read the (absent) Secret and instead honours adminPassword above.
+  admin:
+    existingSecret: ""
+    userKey: admin-user
+    passwordKey: admin-password
+
+  # -- Persistence OFF: default emptyDir (no PVC). Hand-made annotations are lost
+  #    on pod restart, which is acceptable for a local demo. (Cloud: 10Gi gp3 PVC.)
+  persistence:
+    enabled: false
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  # -- Dashboard sidecar KEPT ENABLED so Git-managed dashboard ConfigMaps labelled
+  #    `grafana_dashboard: "1"` (e.g. demo-api-slo-burn.json) are auto-imported,
+  #    exactly as in the cloud. Restated to make the local behaviour explicit;
+  #    values match the cloud overlay.
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      folderAnnotation: grafana_folder
+      provider:
+        foldersFromFilesStructure: true
+      annotations:
+        grafana_folder: my-project
+    datasources:
+      enabled: true
+      label: grafana_datasource
+      labelValue: "1"
+
+  # -- Local Grafana is reached via `kubectl port-forward` at localhost:3000, so
+  #    override the cloud root_url (grafana.example.com behind the ALB) and relax
+  #    cookie_secure (no HTTPS locally) so the login cookie is actually set.
+  grafana.ini:
+    server:
+      root_url: "http://localhost:3000"
+    security:
+      cookie_secure: false
+      disable_gravatar: true
+    users:
+      viewers_can_edit: false
+    auth.anonymous:
+      enabled: false
+
+# -----------------------------------------------------------------------------
+# Control-plane scrape targets — kind is NOT EKS.
+# -----------------------------------------------------------------------------
+# On kind the control plane runs as a local container, so the components the cloud
+# values disable (because EKS hides them) ARE reachable here. Re-enable them so
+# the stack's default Kubernetes dashboards/alerts have data.
+kubeControllerManager:
+  enabled: true
+kubeScheduler:
+  enabled: true
+kubeEtcd:
+  enabled: true
+
+# -- Re-enable the matching default rules that the cloud values switched off for
+#    EKS, since on kind these components are scrapeable.
+defaultRules:
+  create: true
+  rules:
+    etcd: true
+    kubeControllerManager: true
+    kubeScheduler: true

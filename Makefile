@@ -114,3 +114,68 @@ pre-commit: ## Run all pre-commit hooks across the repo.
 
 .PHONY: lint
 lint: tf-validate tf-lint helm-lint app-test ## Run the full local lint suite.
+
+# ============================================================================
+# LOCAL DEMO (kind, NO AWS) — one-command portfolio demo
+# ----------------------------------------------------------------------------
+# Stands up the whole platform on a local kind cluster (`my-project-local`):
+# demo-api + kube-prometheus-stack + OPA Gatekeeper, then drives a reliability
+# story (burn the SLO error budget, then self-heal) and captures dashboards.
+#
+# Everything lives under local/ (scripts + kind config + helm overlays). These
+# targets are thin wrappers around local/scripts/*.sh — see `make demo-help`.
+# Prereqs: docker, kind, kubectl, helm (the scripts preflight-check them).
+#
+#   make demo-up          # create cluster + build/load image + install all + wait
+#   make demo             # burn the error budget, run auto-remediation, recover
+#   make demo-screenshots # capture real Grafana panel PNGs into docs/img/
+#   make demo-down        # delete the kind cluster + stray port-forwards
+# ============================================================================
+LOCAL_SCRIPTS := local/scripts
+
+.PHONY: demo-up
+demo-up: ## [demo] Stand up the local kind demo (cluster, image, monitoring, gatekeeper, demo-api).
+	$(LOCAL_SCRIPTS)/up.sh
+
+.PHONY: demo
+demo: ## [demo] Run the reliability demo: burn the SLO budget, auto-remediate, recover.
+	$(LOCAL_SCRIPTS)/demo.sh
+
+.PHONY: demo-screenshots
+demo-screenshots: ## [demo] Capture real Grafana dashboard PNGs into docs/img/ (graceful fallback if no renderer).
+	$(LOCAL_SCRIPTS)/capture-screenshots.sh
+
+.PHONY: demo-down
+demo-down: ## [demo] Tear down the local demo: delete the kind cluster + port-forwards.
+	$(LOCAL_SCRIPTS)/down.sh
+
+.PHONY: demo-help
+demo-help: ## [demo] Show the local-demo quickstart (what each demo-* target does).
+	@echo ""
+	@echo "  my-project LOCAL DEMO (kind cluster 'my-project-local', NO AWS)"
+	@echo "  --------------------------------------------------------------"
+	@echo "  Prereqs: docker, kind, kubectl, helm  (the scripts preflight-check these)"
+	@echo ""
+	@echo "  1) make demo-up          Create the kind cluster, build + 'kind load' the"
+	@echo "                           demo-api image (ghcr.io/charanvamsy26/demo-api:local),"
+	@echo "                           create namespaces, install kube-prometheus-stack +"
+	@echo "                           OPA Gatekeeper (+ policies) + demo-api, wait for all"
+	@echo "                           rollouts, then print the port-forward URLs."
+	@echo ""
+	@echo "  2) make demo             Start port-forwards, show the healthy baseline, inject"
+	@echo "                           chaos to BURN the SLO error budget, run the"
+	@echo "                           auto-remediation controller, then recover. Set"
+	@echo "                           REMEDIATE=true to let it actually restart demo-api."
+	@echo ""
+	@echo "  3) make demo-screenshots Capture real Grafana panels (demo-api-slo-burn +"
+	@echo "                           demo-api-overview) into docs/img/ via the render API,"
+	@echo "                           with a documented manual fallback if no image-renderer."
+	@echo ""
+	@echo "  4) make demo-down        Delete the kind cluster and any leftover port-forwards."
+	@echo ""
+	@echo "  Access after demo-up (each in its own terminal):"
+	@echo "    demo-api   : kubectl -n demo port-forward svc/demo-api 8000:8000        -> http://localhost:8000"
+	@echo "    Grafana    : kubectl -n monitoring port-forward svc/kube-prometheus-stack-grafana 3000:80 -> http://localhost:3000"
+	@echo "    Prometheus : kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:9090"
+	@echo "    Grafana login: admin / admin  (LOCAL-ONLY credential)"
+	@echo ""

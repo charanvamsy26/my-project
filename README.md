@@ -9,6 +9,7 @@
 [![Observability](https://img.shields.io/badge/Observability-Prometheus%20%2B%20Grafana-E6522C?logo=prometheus&logoColor=white)](https://prometheus.io/)
 [![Policy](https://img.shields.io/badge/Policy-OPA%20Gatekeeper-7D4698?logo=openpolicyagent&logoColor=white)](https://open-policy-agent.github.io/gatekeeper/)
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?logo=githubactions&logoColor=white)](.github/workflows)
+[![demo-e2e](https://github.com/charanvamsy26/my-project/actions/workflows/demo-e2e.yml/badge.svg)](.github/workflows/demo-e2e.yml)
 [![DevSecOps](https://img.shields.io/badge/DevSecOps-tfsec%20%7C%20checkov%20%7C%20trivy%20%7C%20gitleaks-2C7A3D)](.github/workflows/security.yml)
 [![IaC](https://img.shields.io/badge/IaC-modular%20%26%20multi--env-623CE4)](terraform/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -52,6 +53,32 @@ A deeper control-flow + data-flow diagram lives in **[docs/architecture.md](docs
 
 ---
 
+## Run it locally in 5 minutes
+
+No AWS account, no cloud bill. The whole platform — `demo-api`, kube-prometheus-stack,
+OPA Gatekeeper, the SLO rules and dashboards — runs on a local [kind](https://kind.sigs.k8s.io/)
+cluster. One command brings it up, one command drives the reliability story end to end:
+
+```bash
+git clone https://github.com/charanvamsy26/my-project && cd my-project
+make demo-up           # kind cluster + full stack (monitoring, gatekeeper, demo-api)
+make demo              # drive the SLO error-budget-burn + auto-remediation demo
+make demo-screenshots  # capture live Grafana panels into docs/img/
+make demo-down         # delete the kind cluster + stray port-forwards
+```
+
+You need `docker`, `kind`, `kubectl`, and `helm` locally. **Zero-install option:** open the
+repo in **GitHub Codespaces** — the bundled [`.devcontainer/`](.devcontainer/) provisions
+docker-in-docker, kind, kubectl and helm for you, so `make demo-up` works in the browser with
+nothing installed on your machine. Full prerequisites, access URLs (Grafana `admin`/`admin`,
+local-only), the burn walkthrough, and troubleshooting live in **[local/README.md](local/README.md)**.
+
+![SLO error-budget burn](docs/img/slo-burn-dashboard.svg)
+
+*Illustration only — a hand-drawn mock of the `demo-api-slo-burn` dashboard, not a live screenshot. Run `make demo-screenshots` to capture real Grafana panels into [`docs/img/`](docs/img/).*
+
+---
+
 ## Skills demonstrated
 
 | Domain | What this repo shows |
@@ -63,7 +90,7 @@ A deeper control-flow + data-flow diagram lives in **[docs/architecture.md](docs
 | **Prometheus** | RED recording rules, symptom + multi-window multi-burn-rate alerts, ServiceMonitor-based discovery, encrypted gp3 storage with 30d retention. |
 | **Grafana** | Two validated dashboards (demo-api RED + SLO compliance; cluster health) loaded via the dashboard sidecar. |
 | **OPA / Gatekeeper** | 8 ConstraintTemplates + Constraints for runtime admission, plus Conftest for shift-left Terraform/manifest linting — same intent at both layers. |
-| **CI/CD** | 5 least-privilege GitHub Actions workflows: Terraform plan (keyless OIDC), app build/scan/push, Helm validation, security scanning, and tag-driven releases. |
+| **CI/CD** | 6 least-privilege GitHub Actions workflows: Terraform plan (keyless OIDC), app build/scan/push, Helm validation, security scanning, tag-driven releases, and `demo-e2e` (scheduled kind-cluster smoke test of the local demo). |
 | **DevSecOps** | tfsec, checkov, Trivy, gitleaks, Gatekeeper, IRSA least-privilege, KMS encryption everywhere, no committed secrets, supply-chain image scanning. See **[docs/security.md](docs/security.md)**. |
 
 ---
@@ -81,7 +108,9 @@ A deeper control-flow + data-flow diagram lives in **[docs/architecture.md](docs
 | [`chaos/`](chaos/) | Controlled, reversible fault injection — app-level chaos hooks (burn the real error budget) and Chaos Mesh CRDs (cluster-native faults). |
 | [`tools/`](tools/) | Operational tooling — the `auto-remediation` self-healing controller that detects sustained SLO burn and restarts/rolls back demo-api. |
 | [`policies/`](policies/) | Policy-as-code: OPA Gatekeeper templates/constraints (runtime) + Conftest Rego (shift-left) with unit tests and fixtures. |
-| [`.github/workflows/`](.github/workflows/) | The CI/CD and DevSecOps pipelines that gate every change. |
+| [`local/`](local/) | The zero-cloud quickstart: kind cluster config, local Helm overlays, and one-command demo scripts (`up`/`demo`/`screenshots`/`down`) — the whole stack on a laptop. |
+| [`.devcontainer/`](.devcontainer/) | GitHub Codespaces / dev container — docker-in-docker, kind, kubectl, helm preinstalled so the local demo runs in the browser with zero local setup. |
+| [`.github/workflows/`](.github/workflows/) | The CI/CD and DevSecOps pipelines that gate every change — including [`demo-e2e`](.github/workflows/demo-e2e.yml), which stands up the kind demo and smoke-tests it on a schedule. |
 | [`docs/`](docs/) | Architecture, deployment runbook, SRE incident runbook, SLO policy, and security posture. |
 
 ---
@@ -122,8 +151,14 @@ my-project/
 ├── policies/
 │   ├── gatekeeper/               # templates + constraints + install
 │   └── conftest/                 # rego policies + tests + examples
-├── .github/workflows/            # terraform, app-ci, helm-ci, security, release
+├── local/                        # zero-cloud kind demo (no AWS)
+│   ├── kind/kind-config.yaml     #   my-project-local cluster (k8s 1.30)
+│   ├── helm-values/              #   local overlays (demo-api + kube-prometheus-stack)
+│   └── scripts/                  #   up.sh / demo.sh / capture-screenshots.sh / down.sh
+├── .devcontainer/                # GitHub Codespaces: dind + kind + kubectl + helm
+├── .github/workflows/            # terraform, app-ci, helm-ci, security, release, demo-e2e
 ├── docs/                         # architecture, deployment, runbook, slo, security
+│   └── img/                      # dashboard illustration + live screenshot output
 ├── Makefile                      # discoverable wrappers: make help
 ├── CONTRIBUTING.md  SECURITY.md  LICENSE
 ```

@@ -1,0 +1,163 @@
+# =============================================================================
+# demo-api — LOCAL overlay for the kind cluster `my-project-local` (NO AWS)
+# -----------------------------------------------------------------------------
+# Chart  : kubernetes/charts/demo-api
+# Render : ~/.local/bin/helm template demo kubernetes/charts/demo-api \
+#            -f local/helm-values/demo-api.local.yaml --namespace demo
+# Install: helm upgrade --install demo-api kubernetes/charts/demo-api \
+#            -f local/helm-values/demo-api.local.yaml -n demo --create-namespace
+#
+# This overlay layers ON TOP of charts/demo-api/values.yaml (the cloud defaults)
+# and only changes what must differ on a laptop. Everything cloud-only (ALB
+# ingress, AWS LB Controller annotations, IRSA, RDS/DATABASE_URL) is turned off;
+# everything Gatekeeper enforces (registry, non-:latest tag, resources incl. a
+# CPU LIMIT, hardened securityContext, probes, ownership labels) is KEPT so the
+# rendered manifests still pass policy on the local cluster.
+# Every overridden key is documented inline below.
+# =============================================================================
+
+# -- Single replica is plenty for a local demo and keeps laptop memory low.
+#    (Overrides the chart default replicaCount: 2.) The PDB is disabled below so
+#    a single replica can still be evicted/drained freely.
+replicaCount: 1
+
+image:
+  # -- Local image built from app/Dockerfile and side-loaded with
+  #    `kind load docker-image ghcr.io/charanvamsy26/demo-api:local`.
+  #    Same as the chart default repository — restated for clarity/self-containment.
+  repository: ghcr.io/charanvamsy26/demo-api
+  # -- Explicit, non-:latest tag under the ghcr.io/charanvamsy26/ prefix so the
+  #    pod PASSES Gatekeeper's allowed-registries + disallow-latest constraints.
+  #    (Chart default tag is "" -> appVersion; we pin to the locally-built tag.)
+  tag: local
+  # -- IfNotPresent so Kubernetes uses the kind-loaded image and never tries to
+  #    pull `:local` from GHCR (it does not exist remotely). Matches chart default.
+  pullPolicy: IfNotPresent
+
+# -- No pull secret needed: the image is loaded directly into kind, not pulled.
+imagePullSecrets: []
+
+# -----------------------------------------------------------------------------
+# Service — expose port 8000 locally so port-forward is 8000:8000
+# -----------------------------------------------------------------------------
+# -- The cloud default exposes the Service on port 80 (fronted by the ALB). On
+#    kind we reach it with `kubectl -n demo port-forward svc/demo-api 8000:8000`,
+#    so the Service port itself is set to 8000 (targetPort stays the container's
+#    http/8000). This makes the documented port-forward command line up exactly
+#    and keeps BASE_URL=http://localhost:8000 consistent across the k6, chaos and
+#    auto-remediation tooling. (ClusterIP is inherited from the chart default.)
+service:
+  type: ClusterIP
+  port: 8000
+  targetPort: 8000
+
+serviceAccount:
+  # -- Keep a dedicated SA (least privilege) but with NO IRSA role annotation.
+  #    IRSA (eks.amazonaws.com/role-arn) is AWS-only and meaningless on kind, so
+  #    annotations are explicitly emptied here. (Chart default is already {}.)
+  create: true
+  annotations: {}
+  automountServiceAccountToken: false
+
+# -----------------------------------------------------------------------------
+# Ingress — DISABLED locally
+# -----------------------------------------------------------------------------
+# -- ALB ingress requires the AWS Load Balancer Controller, which does not exist
+#    on kind. We reach the Service with `kubectl -n demo port-forward
+#    svc/demo-api 8000:8000` instead. Setting enabled: false makes the chart skip
+#    templates/ingress.yaml entirely, so the ALB annotations
+#    (alb.ingress.kubernetes.io/*, ACM cert ARN, scheme, target-type) are never
+#    rendered — i.e. all AWS/ALB annotations are effectively off.
+ingress:
+  enabled: false
+
+# -----------------------------------------------------------------------------
+# Resources — modest, but STILL satisfy Gatekeeper's require-resources
+# -----------------------------------------------------------------------------
+# require-resources (K8sRequireResources) demands BOTH cpu AND memory in BOTH
+# requests AND limits. The cloud values.yaml intentionally OMITS limits.cpu (to
+# avoid CFS throttling in prod), which would FAIL the constraint on a cluster
+# where `demo` is not an excluded namespace. So locally we MUST add a CPU limit.
+# Sizes are small enough to fit a laptop while keeping a healthy req:limit ratio.
+resources:
+  requests:
+    cpu: 50m       # modest request -> easy to schedule on a 1-node kind cluster
+    memory: 64Mi
+  limits:
+    cpu: 200m      # REQUIRED locally: chart default has no cpu limit; add one so
+                   # require-resources passes (cpu present in limits).
+    memory: 128Mi
+
+# -- HPA off: a single static replica is right for the demo and avoids needing
+#    metrics-server on kind. (Chart default autoscaling.enabled: true.) With the
+#    HPA disabled the Deployment honors replicaCount above.
+autoscaling:
+  enabled: false
+
+# -- PodDisruptionBudget off: a single replica can never satisfy minAvailable: 1
+#    during a drain, and it would block node operations. (Chart default enabled.)
+podDisruptionBudget:
+  enabled: false
+
+# -----------------------------------------------------------------------------
+# Database — UNSET so demo-api runs DB-less (stateless)
+# -----------------------------------------------------------------------------
+# -- No RDS locally. Leaving databaseUrl / databaseUrlExistingSecret empty means
+#    the Deployment renders NO DATABASE_URL env var and NO db Secret, so the app
+#    starts in its stateless mode. (Both are already "" in the chart default;
+#    restated here to make the DB-less intent explicit and self-contained.)
+databaseUrl: ""
+databaseUrlExistingSecret: ""
+
+# -- Non-secret app config rendered into the ConfigMap and consumed via envFrom.
+#    APP_NAME/LOG_LEVEL/DB_CONNECT_TIMEOUT; crucially NO DATABASE_URL key here, so
+#    nothing points the app at a database.
+#
+#    CHAOS_ADMIN_TOKEN: enables the guarded POST /admin/chaos endpoint so the
+#    reliability demo (local/scripts/demo.sh, chaos/scripts/*, load-test/k6) can
+#    inject 500s/latency on demand and burn the SLO error budget. This is a
+#    THROWAWAY LOCAL-ONLY token — the same value the demo scripts default to
+#    (CHAOS_ADMIN_TOKEN=local-demo-token). In dev/prod this is injected from a
+#    Secret (External Secrets / AWS Secrets Manager), never hard-coded like this.
+#    Without it the endpoint is disabled (404) and the demo cannot toggle chaos.
+config:
+  APP_NAME: demo-api
+  LOG_LEVEL: INFO
+  DB_CONNECT_TIMEOUT: "2"
+  CHAOS_ADMIN_TOKEN: "local-demo-token"
+
+# -----------------------------------------------------------------------------
+# Security context + probes — KEPT (do NOT weaken; Gatekeeper enforces them)
+# -----------------------------------------------------------------------------
+# We deliberately do NOT override podSecurityContext, securityContext,
+# livenessProbe, readinessProbe, or startupProbe — the hardened chart defaults
+# (runAsNonRoot, drop ALL caps, no privilege escalation, readOnlyRootFilesystem,
+# /healthz + /readyz probes) already satisfy require-security-context and
+# require-probes. They are listed here only as a reminder; the values are
+# inherited unchanged from charts/demo-api/values.yaml.
+
+# -----------------------------------------------------------------------------
+# ServiceMonitor — KEPT enabled with the label the local stack scrapes
+# -----------------------------------------------------------------------------
+# -- The local kube-prometheus-stack is installed with release name
+#    `kube-prometheus-stack`, and its prometheusSpec.serviceMonitorSelector
+#    matches `release: kube-prometheus-stack`. This label MUST stay exactly so
+#    our metrics are scraped locally. (Same value as the chart default; restated
+#    so the discovery contract is obvious in the local overlay.)
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+  path: /metrics
+  labels:
+    release: kube-prometheus-stack
+
+# -- Environment label flips to `local` so dashboards/queries can distinguish
+#    laptop runs from dev/prod. (Chart default environment: dev.)
+environment: local
+
+# -----------------------------------------------------------------------------
+# NetworkPolicy — left at chart defaults (default-deny + monitoring allow).
+# kind's kindnet only partially enforces NetworkPolicy, so this is harmless
+# locally; the `release` label above is what actually wires up scraping.
+# -----------------------------------------------------------------------------

@@ -1,0 +1,421 @@
+---
+# =============================================================================
+# demo-e2e — prove the LOCAL demo actually boots end-to-end on a kind cluster.
+# -----------------------------------------------------------------------------
+# This is the CI counterpart to `make demo-up`: on an ubuntu runner it stands up
+# a kind cluster (NO AWS), builds + loads the demo-api image, installs Gatekeeper
+# + kube-prometheus-stack + the demo-api chart with cloud-only features disabled,
+# waits for readiness, then runs a smoke test:
+#     * curl the app's /healthz through `kubectl port-forward`
+#     * assert demo-api pods are Ready
+#     * assert the Gatekeeper constraints are Established (CRDs accepted)
+# Finally it (optionally) captures Grafana screenshots and uploads any
+# docs/img/*.png as a build artifact.
+#
+# Triggers: MANUAL (workflow_dispatch) + an optional WEEKLY schedule. It does NOT
+# run on push/PR on purpose — booting a cluster is slow and would add PR noise.
+# This job exists to periodically verify the local stack still boots, not to gate
+# every change.
+#
+# Everything here mirrors the SHARED LOCAL-DEMO CONSTANTS so it stays in lockstep
+# with `make demo-up` / local/scripts/up.sh:
+#   kind cluster ... my-project-local   (k8s 1.30, kindest/node:v1.30.x)
+#   image .......... ghcr.io/charanvamsy26/demo-api:local  (IfNotPresent)
+#   namespaces ..... demo / monitoring / gatekeeper-system
+# =============================================================================
+name: demo-e2e
+
+"on":
+  # Run on demand from the Actions tab.
+  workflow_dispatch:
+    inputs:
+      screenshots:
+        description: "Capture Grafana screenshots (runs capture-screenshots.sh if present)"
+        type: boolean
+        default: false
+  # Optional weekly canary: Mondays 06:00 UTC. Catches upstream drift (kind node
+  # image, chart versions, Gatekeeper) before it bites a demo.
+  schedule:
+    - cron: "0 6 * * 1"
+
+# Least privilege: this job only reads the repo. It builds an image locally and
+# loads it into kind — it never pushes to a registry — so no `packages: write`,
+# no `id-token`, no `security-events`. The default token is read-only.
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Single source of truth — must match the shared local-demo constants exactly.
+  CLUSTER_NAME: my-project-local
+  KIND_NODE_IMAGE: "kindest/node:v1.30.4"
+  IMAGE: "ghcr.io/charanvamsy26/demo-api:local"
+  APP_NS: demo
+  MON_NS: monitoring
+  GK_NS: gatekeeper-system
+
+jobs:
+  e2e:
+    name: kind end-to-end smoke
+    runs-on: ubuntu-24.04
+    # Generous but bounded: a cold cluster + three Helm installs + image pulls.
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ---------------------------------------------------------------------
+      # Toolchain. kubectl + helm via official actions; Docker/Buildx ship on
+      # the runner. We pin every action to a release tag.
+      # ---------------------------------------------------------------------
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.30.4"
+
+      - name: Install helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.16.3"
+
+      # ---------------------------------------------------------------------
+      # Create the kind cluster. Using helm/kind-action gives us a pinned,
+      # well-maintained installer; we feed it our exact cluster name + node
+      # image so the cluster is byte-identical to the one `make demo-up` makes.
+      # ---------------------------------------------------------------------
+      - name: Create kind cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          node_image: ${{ env.KIND_NODE_IMAGE }}
+          wait: 120s
+
+      - name: Cluster sanity
+        run: |
+          set -euo pipefail
+          kubectl cluster-info
+          kubectl get nodes -o wide
+          kubectl version
+
+      # ---------------------------------------------------------------------
+      # Build the demo-api image and load it into kind. Explicit non-:latest
+      # tag under ghcr.io/charanvamsy26/ so it passes Gatekeeper's
+      # allowed-registries + disallow-latest constraints once installed.
+      # ---------------------------------------------------------------------
+      - name: Build demo-api image
+        uses: docker/build-push-action@v6
+        with:
+          context: app
+          file: app/Dockerfile
+          load: true          # load into the local daemon, do NOT push
+          push: false
+          tags: ${{ env.IMAGE }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Load image into kind
+        run: |
+          set -euo pipefail
+          echo "==> loading ${IMAGE} into kind/${CLUSTER_NAME}"
+          kind load docker-image "${IMAGE}" --name "${CLUSTER_NAME}"
+
+      # ---------------------------------------------------------------------
+      # Bring the stack up. Prefer the repo's own local/scripts/up.sh so CI
+      # exercises the exact same path a developer runs; fall back to an inline
+      # equivalent if that script isn't present yet. Either way the result is
+      # the same three releases in the same three namespaces.
+      # ---------------------------------------------------------------------
+      - name: Bring up the local stack
+        env:
+          # Tell up.sh (if it honors these) to reuse the cluster/image we just
+          # made instead of creating its own.
+          CLUSTER_NAME: ${{ env.CLUSTER_NAME }}
+          IMAGE: ${{ env.IMAGE }}
+          SKIP_CLUSTER_CREATE: "true"   # cluster already exists (kind-action)
+          SKIP_IMAGE_BUILD: "true"      # image already built + loaded above
+          CI: "true"
+        run: |
+          set -euo pipefail
+          if [ -x local/scripts/up.sh ]; then
+            echo "==> using repo local/scripts/up.sh"
+            ./local/scripts/up.sh
+          elif [ -f local/scripts/up.sh ]; then
+            echo "==> using repo local/scripts/up.sh (via bash)"
+            bash local/scripts/up.sh
+          else
+            echo "==> local/scripts/up.sh not found; using inline equivalent"
+
+            echo "==> namespaces"
+            for ns in "${APP_NS}" "${MON_NS}" "${GK_NS}"; do
+              kubectl create namespace "$ns" --dry-run=client -o yaml | kubectl apply -f -
+            done
+            # The monitoring ns must carry a label demo-api's NetworkPolicy can
+            # select on (allow scrape traffic from the monitoring namespace).
+            kubectl label namespace "${MON_NS}" name="${MON_NS}" --overwrite
+
+            echo "==> helm repos"
+            helm repo add gatekeeper https://open-policy-agent.github.io/gatekeeper/charts
+            helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+            helm repo update
+
+            echo "==> Gatekeeper"
+            helm upgrade --install gatekeeper gatekeeper/gatekeeper \
+              --namespace "${GK_NS}" --create-namespace \
+              --set replicas=1 \
+              --set audit.replicas=1 \
+              --wait --timeout 5m
+            kubectl -n "${GK_NS}" rollout status deploy/gatekeeper-controller-manager --timeout=5m
+            kubectl -n "${GK_NS}" rollout status deploy/gatekeeper-audit --timeout=5m
+
+            echo "==> Gatekeeper ConstraintTemplates"
+            kubectl apply -f policies/gatekeeper/templates/
+            # Wait for each template's generated CRD to be Established before
+            # applying constraints that depend on it.
+            for t in $(kubectl get constrainttemplates -o name); do
+              name="${t##*/}"
+              echo "    waiting for template ${name} CRD"
+              kubectl wait --for=condition=established \
+                "crd/${name}.constraints.gatekeeper.sh" --timeout=120s || true
+            done
+
+            echo "==> Gatekeeper Constraints"
+            # Retry once: the generated CRDs may still be registering with the API.
+            kubectl apply -f policies/gatekeeper/constraints/ || \
+              { sleep 10; kubectl apply -f policies/gatekeeper/constraints/; }
+
+            echo "==> kube-prometheus-stack (release name kube-prometheus-stack)"
+            # Local-only Grafana password 'admin' (clearly a throwaway dev credential).
+            helm upgrade --install kube-prometheus-stack \
+              prometheus-community/kube-prometheus-stack \
+              --namespace "${MON_NS}" --create-namespace \
+              --set grafana.adminPassword=admin \
+              --set grafana.defaultDashboardsEnabled=false \
+              --set prometheus.prometheusSpec.retention=2h \
+              --set prometheus.prometheusSpec.resources.requests.memory=256Mi \
+              --set alertmanager.enabled=false \
+              --set nodeExporter.enabled=false \
+              --set kubeStateMetrics.enabled=true \
+              --set defaultRules.create=false \
+              --wait --timeout 12m
+
+            echo "==> demo-api chart (cloud-only features disabled)"
+            # ingress (ALB) off, no RDS/DATABASE_URL, no IRSA SA annotations,
+            # laptop-sized requests — while keeping securityContext/probes/limits
+            # so Gatekeeper still passes. Explicit non-:latest tag under ghcr.io.
+            helm upgrade --install demo-api kubernetes/charts/demo-api \
+              --namespace "${APP_NS}" --create-namespace \
+              --set fullnameOverride=demo-api \
+              --set image.repository=ghcr.io/charanvamsy26/demo-api \
+              --set image.tag=local \
+              --set image.pullPolicy=IfNotPresent \
+              --set service.port=8000 \
+              --set ingress.enabled=false \
+              --set autoscaling.enabled=false \
+              --set podDisruptionBudget.enabled=false \
+              --set replicaCount=1 \
+              --set databaseUrl="" \
+              --set resources.requests.cpu=25m \
+              --set resources.requests.memory=64Mi \
+              --set resources.limits.memory=128Mi \
+              --wait --timeout 5m
+          fi
+
+      # ---------------------------------------------------------------------
+      # Readiness gates. Fail loudly (and dump diagnostics) if anything is not
+      # Ready within the timeout.
+      # ---------------------------------------------------------------------
+      - name: Wait for demo-api readiness
+        run: |
+          set -euo pipefail
+          echo "==> waiting for demo-api rollout in ns/${APP_NS}"
+          kubectl -n "${APP_NS}" rollout status deploy/demo-api --timeout=5m
+          echo "==> waiting for demo-api pods Ready"
+          kubectl -n "${APP_NS}" wait --for=condition=Ready pod \
+            -l app.kubernetes.io/name=demo-api --timeout=3m
+
+      # ---------------------------------------------------------------------
+      # SMOKE TEST 1 — assert demo-api pods are Ready (explicit, not just rollout).
+      # ---------------------------------------------------------------------
+      - name: Assert demo-api pods Ready
+        run: |
+          set -euo pipefail
+          # Every demo-api pod must report Ready=True. Count "not Ready" pods.
+          not_ready="$(kubectl -n "${APP_NS}" get pods \
+            -l app.kubernetes.io/name=demo-api \
+            -o jsonpath='{range .items[*]}{.metadata.name}={range .status.conditions[?(@.type=="Ready")]}{.status}{end} {end}' \
+            | tr ' ' '\n' | grep -vE '=True$' | grep -v '^$' || true)"
+          if [ -n "${not_ready}" ]; then
+            echo "::error::demo-api pods not Ready:"
+            echo "${not_ready}"
+            exit 1
+          fi
+          echo "OK: all demo-api pods Ready"
+          kubectl -n "${APP_NS}" get pods -l app.kubernetes.io/name=demo-api -o wide
+
+      # ---------------------------------------------------------------------
+      # SMOKE TEST 2 — curl /healthz through a port-forward (mirrors the demo).
+      # ---------------------------------------------------------------------
+      - name: Smoke test demo-api /healthz via port-forward
+        run: |
+          set -euo pipefail
+          # Discover the Service port so this works whether the overlay exposes
+          # 8000 (local constant) or the chart default. demo-api Service is named
+          # `demo-api` (fullnameOverride) per the shared constants.
+          svc_port="$(kubectl -n "${APP_NS}" get svc demo-api \
+            -o jsonpath='{.spec.ports[0].port}')"
+          echo "==> port-forwarding svc/demo-api ${svc_port} -> localhost:8000"
+          kubectl -n "${APP_NS}" port-forward svc/demo-api "8000:${svc_port}" >/tmp/pf.log 2>&1 &
+          pf_pid=$!
+          trap 'kill "${pf_pid}" 2>/dev/null || true' EXIT
+
+          # Wait for the forward to come up, then probe the liveness + readiness
+          # endpoints. Retry briefly so we don't race the forward.
+          ok=""
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 3 http://localhost:8000/healthz >/tmp/healthz.json 2>/dev/null; then
+              ok="yes"; break
+            fi
+            sleep 2
+          done
+          if [ -z "${ok}" ]; then
+            echo "::error::/healthz did not respond 200 via port-forward"
+            cat /tmp/pf.log || true
+            exit 1
+          fi
+          echo "OK: /healthz ->"; cat /tmp/healthz.json; echo
+          # /readyz should also be healthy in DB-less local mode (no CHAOS_OUTAGE).
+          curl -fsS --max-time 3 http://localhost:8000/readyz && echo " OK: /readyz 200"
+          # /metrics exposes Prometheus text — confirm it's there for the scrape contract.
+          curl -fsS --max-time 3 http://localhost:8000/metrics | head -n 3
+
+      # ---------------------------------------------------------------------
+      # SMOKE TEST 3 — assert Gatekeeper constraints are Established.
+      # A constraint is "Established" when its CRD is accepted AND Gatekeeper has
+      # ingested it (status.byPod populated, no errors). We assert the constraint
+      # CRDs exist and that at least the core demo constraints are present.
+      # ---------------------------------------------------------------------
+      - name: Assert Gatekeeper constraints established
+        run: |
+          set -euo pipefail
+          echo "==> ConstraintTemplate CRDs"
+          kubectl get constrainttemplates -o wide || true
+
+          # All ConstraintTemplate-generated CRDs must be Established.
+          tmpls="$(kubectl get constrainttemplates -o jsonpath='{.items[*].metadata.name}')"
+          if [ -z "${tmpls}" ]; then
+            echo "::error::no Gatekeeper ConstraintTemplates found"
+            exit 1
+          fi
+          for name in ${tmpls}; do
+            crd="${name}.constraints.gatekeeper.sh"
+            echo "    checking crd/${crd} Established"
+            kubectl wait --for=condition=established "crd/${crd}" --timeout=120s
+          done
+
+          # The demo's key constraints must exist and be ingested by Gatekeeper.
+          # Gather every constraint instance (across all constraint kinds) once,
+          # then check the required names are present and report their status.
+          all_names="$(
+            for crd in $(kubectl get crd -o name | grep '\.constraints\.gatekeeper\.sh$'); do
+              k="${crd##*/}"; k="${k%%.constraints.gatekeeper.sh}"
+              kubectl get "${k}.constraints.gatekeeper.sh" \
+                -o jsonpath='{.items[*].metadata.name}' 2>/dev/null
+              echo
+            done | tr ' ' '\n' | grep -v '^$' | sort -u
+          )"
+          echo "==> constraint instances present:"; echo "${all_names}" | sed 's/^/    /'
+
+          required="allowed-image-registries disallow-latest-tag require-hardened-security-context require-liveness-readiness-probes require-resource-requests-limits"
+          missing=""
+          for c in ${required}; do
+            if echo "${all_names}" | grep -qx "${c}"; then
+              echo "    OK: constraint ${c} present"
+            else
+              echo "    MISSING: constraint ${c}"
+              missing="${missing} ${c}"
+            fi
+          done
+          if [ -n "${missing}" ]; then
+            echo "::error::missing Gatekeeper constraints:${missing}"
+            kubectl get crd | grep gatekeeper || true
+            exit 1
+          fi
+
+          # Report each constraint's audit status (totalViolations) for visibility.
+          echo "==> constraint status (totalViolations):"
+          for crd in $(kubectl get crd -o name | grep '\.constraints\.gatekeeper\.sh$'); do
+            k="${crd##*/}"; k="${k%%.constraints.gatekeeper.sh}"
+            kubectl get "${k}.constraints.gatekeeper.sh" -o \
+              jsonpath='{range .items[*]}{.metadata.name}{": totalViolations="}{.status.totalViolations}{"\n"}{end}' 2>/dev/null || true
+          done
+          echo "OK: Gatekeeper constraints established"
+
+      # ---------------------------------------------------------------------
+      # Optional screenshots. Only when explicitly requested (manual input) and
+      # only if the capture script exists. Never fails the build.
+      # ---------------------------------------------------------------------
+      - name: Capture screenshots (optional)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.screenshots }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          if [ -x local/scripts/capture-screenshots.sh ]; then
+            ./local/scripts/capture-screenshots.sh
+          elif [ -f local/scripts/capture-screenshots.sh ]; then
+            bash local/scripts/capture-screenshots.sh
+          else
+            echo "capture-screenshots.sh not present; skipping"
+          fi
+
+      # ---------------------------------------------------------------------
+      # Upload any generated PNGs. `if-no-files-found: ignore` keeps a run green
+      # when no screenshots were produced (the common case).
+      # ---------------------------------------------------------------------
+      - name: Upload screenshots artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-screenshots
+          path: docs/img/*.png
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # ---------------------------------------------------------------------
+      # Diagnostics on failure — make a red run actually debuggable.
+      # ---------------------------------------------------------------------
+      - name: Dump diagnostics on failure
+        if: ${{ failure() }}
+        run: |
+          set +e
+          echo "==================== NODES ===================="
+          kubectl get nodes -o wide
+          echo "==================== ALL PODS ===================="
+          kubectl get pods -A -o wide
+          echo "==================== demo-api describe ===================="
+          kubectl -n "${APP_NS}" describe deploy/demo-api
+          kubectl -n "${APP_NS}" describe pods -l app.kubernetes.io/name=demo-api
+          echo "==================== demo-api logs ===================="
+          kubectl -n "${APP_NS}" logs -l app.kubernetes.io/name=demo-api --tail=100 --all-containers
+          echo "==================== events ===================="
+          kubectl -n "${APP_NS}" get events --sort-by=.lastTimestamp | tail -n 40
+          echo "==================== gatekeeper ===================="
+          kubectl -n "${GK_NS}" get pods
+          kubectl get constrainttemplates,constraints.constraints.gatekeeper.sh -A 2>/dev/null
+          echo "==================== helm releases ===================="
+          helm list -A
+
+      # ---------------------------------------------------------------------
+      # Always tear the cluster down so a self-hosted runner never leaks state.
+      # (On GitHub-hosted runners the VM is ephemeral, but this is correct + cheap.)
+      # ---------------------------------------------------------------------
+      - name: Delete kind cluster
+        if: ${{ always() }}
+        run: kind delete cluster --name "${CLUSTER_NAME}" || true

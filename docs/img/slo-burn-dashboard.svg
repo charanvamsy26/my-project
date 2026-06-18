@@ -1,0 +1,347 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 760" width="1280" height="760" font-family="Inter, 'Helvetica Neue', Arial, sans-serif" role="img" aria-labelledby="title desc">
+  <title id="title">demo-api SLO error-budget-burn dashboard (illustrative mock)</title>
+  <desc id="desc">An illustrative, hand-drawn diagram of the demo-api SLO burn Grafana dashboard. It shows steady request rate with an error spike (the chaos burn) that recovers after auto-remediation, an error-budget-remaining gauge that drains from 100 percent toward zero and then recovers, and fast/slow burn-rate stat panels that flip red during the burn and back to green after recovery. This is an illustration, not a real screenshot — run make demo-up and make demo-screenshots for live dashboards.</desc>
+
+  <defs>
+    <!-- Grafana-dark-like palette -->
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#161719"/>
+      <stop offset="1" stop-color="#0b0c0e"/>
+    </linearGradient>
+    <linearGradient id="panelGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1f2126"/>
+      <stop offset="1" stop-color="#181a1f"/>
+    </linearGradient>
+    <linearGradient id="errFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f2495c" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#f2495c" stop-opacity="0.03"/>
+    </linearGradient>
+    <linearGradient id="rateFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5794f2" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#5794f2" stop-opacity="0.02"/>
+    </linearGradient>
+    <linearGradient id="latFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff9830" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#ff9830" stop-opacity="0.02"/>
+    </linearGradient>
+    <!-- gauge arc gradient: green -> amber -> red along the dial -->
+    <linearGradient id="gaugeTrack" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#f2495c"/>
+      <stop offset="0.5" stop-color="#ff9830"/>
+      <stop offset="1" stop-color="#56a64b"/>
+    </linearGradient>
+    <!-- watermark diagonal repeating tint -->
+    <pattern id="wm" width="340" height="170" patternUnits="userSpaceOnUse" patternTransform="rotate(-18)">
+      <text x="0" y="120" font-size="26" font-weight="700" fill="#ffffff" fill-opacity="0.035"
+            letter-spacing="2">ILLUSTRATIVE MOCK</text>
+    </pattern>
+  </defs>
+
+  <!-- backdrop -->
+  <rect x="0" y="0" width="1280" height="760" fill="url(#bgGrad)"/>
+
+  <!-- ================= Top bar ================= -->
+  <g>
+    <rect x="0" y="0" width="1280" height="56" fill="#0d0e10"/>
+    <line x1="0" y1="56" x2="1280" y2="56" stroke="#2c2f36" stroke-width="1"/>
+    <!-- Grafana-ish mark -->
+    <circle cx="32" cy="28" r="11" fill="none" stroke="#f7941e" stroke-width="3"/>
+    <circle cx="32" cy="28" r="3.4" fill="#f7941e"/>
+    <text x="54" y="33" font-size="18" font-weight="700" fill="#d8d9da">demo-api — Error Budget Burn</text>
+    <text x="318" y="33" font-size="13" fill="#7b8088">/ SLO 99.9% · 30-day window</text>
+    <!-- time range pill -->
+    <rect x="1064" y="14" width="142" height="28" rx="5" fill="#22252b" stroke="#33373f"/>
+    <text x="1078" y="32" font-size="12.5" fill="#b6b9bf">⟳  Last 1 hour</text>
+    <rect x="1214" y="14" width="34" height="28" rx="5" fill="#22252b" stroke="#33373f"/>
+    <text x="1224" y="33" font-size="14" fill="#b6b9bf">5s</text>
+  </g>
+
+  <!-- prominent honesty banner -->
+  <g>
+    <rect x="0" y="56" width="1280" height="30" fill="#3a2a12"/>
+    <line x1="0" y1="86" x2="1280" y2="86" stroke="#7a5a1e" stroke-width="1"/>
+    <text x="640" y="76" text-anchor="middle" font-size="13.5" font-weight="700" fill="#ffcf70" letter-spacing="0.4">
+      ⚠ ILLUSTRATIVE MOCK — this is a hand-drawn diagram, NOT a real screenshot.  Run  `make demo-up &amp;&amp; make demo-screenshots`  for live dashboards.
+    </text>
+  </g>
+
+  <!-- ================= Row 1 : three stat panels ================= -->
+  <!-- Error Budget Remaining (gauge) -->
+  <g>
+    <rect x="20" y="100" width="406" height="206" rx="8" fill="url(#panelGrad)" stroke="#2c2f36"/>
+    <text x="38" y="124" font-size="13.5" font-weight="600" fill="#c7cad0">Error Budget Remaining (30d)</text>
+    <!-- gauge: 240° dial -->
+    <g transform="translate(223,232)">
+      <!-- track -->
+      <path d="M -118 0 A 118 118 0 1 1 118 0" fill="none" stroke="#2a2d33" stroke-width="20" stroke-linecap="round"/>
+      <!-- value arc: drained to ~31% remaining (needle low) -->
+      <path d="M -118 0 A 118 118 0 0 1 -39 -111" fill="none" stroke="url(#gaugeTrack)" stroke-width="20" stroke-linecap="round"/>
+      <!-- threshold ticks -->
+      <text x="-118" y="26" font-size="10.5" fill="#7b8088" text-anchor="middle">0%</text>
+      <text x="118" y="26" font-size="10.5" fill="#7b8088" text-anchor="middle">100%</text>
+      <!-- big value -->
+      <text x="0" y="-12" text-anchor="middle" font-size="46" font-weight="800" fill="#ff9830">31%</text>
+      <text x="0" y="16" text-anchor="middle" font-size="12.5" fill="#9aa0a8">remaining · draining</text>
+      <!-- small down arrow -->
+      <text x="0" y="40" text-anchor="middle" font-size="13" font-weight="700" fill="#f2495c">▼ burning</text>
+    </g>
+  </g>
+
+  <!-- Fast burn-rate stat -->
+  <g>
+    <rect x="438" y="100" width="406" height="100" rx="8" fill="#3a1418" stroke="#7a2630"/>
+    <text x="456" y="124" font-size="13.5" font-weight="600" fill="#f3b7bd">Burn rate — fast (1h / 5m)  ·  PAGE</text>
+    <text x="456" y="176" font-size="40" font-weight="800" fill="#ff5a6a">22.6×</text>
+    <text x="690" y="158" font-size="12.5" fill="#f3b7bd" text-anchor="end">threshold 14.4×</text>
+    <text x="826" y="176" font-size="13" font-weight="700" fill="#ff5a6a" text-anchor="end">▲ FIRING</text>
+  </g>
+
+  <!-- Slow burn-rate stat -->
+  <g>
+    <rect x="438" y="206" width="406" height="100" rx="8" fill="#36230f" stroke="#7a541e"/>
+    <text x="456" y="230" font-size="13.5" font-weight="600" fill="#f0cd96">Burn rate — slow (6h / 30m)  ·  TICKET</text>
+    <text x="456" y="282" font-size="40" font-weight="800" fill="#ff9830">7.1×</text>
+    <text x="690" y="264" font-size="12.5" fill="#f0cd96" text-anchor="end">threshold 6×</text>
+    <text x="826" y="282" font-size="13" font-weight="700" fill="#ff9830" text-anchor="end">▲ PENDING</text>
+  </g>
+
+  <!-- Alert + remediation state panel -->
+  <g>
+    <rect x="856" y="100" width="404" height="206" rx="8" fill="url(#panelGrad)" stroke="#2c2f36"/>
+    <text x="874" y="124" font-size="13.5" font-weight="600" fill="#c7cad0">Alert &amp; auto-remediation state</text>
+
+    <circle cx="884" cy="152" r="5" fill="#f2495c"/>
+    <text x="900" y="157" font-size="13" fill="#d8d9da">DemoApiErrorBudgetBurnFast</text>
+    <text x="1242" y="157" font-size="12.5" font-weight="700" fill="#f2495c" text-anchor="end">FIRING</text>
+
+    <circle cx="884" cy="182" r="5" fill="#5794f2"/>
+    <text x="900" y="187" font-size="13" fill="#d8d9da">auto-remediation controller</text>
+    <text x="1242" y="187" font-size="12.5" font-weight="700" fill="#5794f2" text-anchor="end">breach sustained</text>
+
+    <circle cx="884" cy="212" r="5" fill="#ff9830"/>
+    <text x="900" y="217" font-size="13" fill="#d8d9da">action</text>
+    <text x="1242" y="217" font-size="12" fill="#ff9830" text-anchor="end" font-family="ui-monospace, Menlo, monospace">rollout restart demo-api</text>
+
+    <line x1="874" y1="234" x2="1242" y2="234" stroke="#2c2f36"/>
+    <text x="874" y="256" font-size="11.5" fill="#7b8088">MTTR = detect → sustain-gate → restart  (seconds, no human round-trip)</text>
+    <circle cx="884" cy="280" r="5" fill="#56a64b"/>
+    <text x="900" y="285" font-size="13" fill="#d8d9da">post-restart</text>
+    <text x="1242" y="285" font-size="12.5" font-weight="700" fill="#56a64b" text-anchor="end">recovering ✓</text>
+  </g>
+
+  <!-- ================= Row 2 : Request rate by status (time series) ================= -->
+  <!-- Shared geometry for the three time-series:
+       plot x: 80..620 (top-left), 740..1240 (top-right is the panels above);
+       We use two wide panels stacked: rate (left) and error (right). -->
+
+  <!-- Panel: Request Rate by status -->
+  <g>
+    <rect x="20" y="320" width="620" height="210" rx="8" fill="url(#panelGrad)" stroke="#2c2f36"/>
+    <text x="38" y="344" font-size="13.5" font-weight="600" fill="#c7cad0">Request Rate (req/s) by status</text>
+    <!-- legend -->
+    <rect x="430" y="334" width="11" height="11" rx="2" fill="#5794f2"/><text x="446" y="344" font-size="11.5" fill="#9aa0a8">2xx</text>
+    <rect x="486" y="334" width="11" height="11" rx="2" fill="#f2495c"/><text x="502" y="344" font-size="11.5" fill="#9aa0a8">5xx</text>
+
+    <!-- plot box: x 70..620, y 360..506 -->
+    <g>
+      <!-- gridlines -->
+      <line x1="70" y1="506" x2="620" y2="506" stroke="#2c2f36"/>
+      <line x1="70" y1="470" x2="620" y2="470" stroke="#23262c"/>
+      <line x1="70" y1="434" x2="620" y2="434" stroke="#23262c"/>
+      <line x1="70" y1="398" x2="620" y2="398" stroke="#23262c"/>
+      <line x1="70" y1="362" x2="620" y2="362" stroke="#23262c"/>
+      <!-- y labels -->
+      <text x="62" y="510" font-size="10.5" fill="#6b7079" text-anchor="end">0</text>
+      <text x="62" y="474" font-size="10.5" fill="#6b7079" text-anchor="end">50</text>
+      <text x="62" y="438" font-size="10.5" fill="#6b7079" text-anchor="end">100</text>
+      <text x="62" y="402" font-size="10.5" fill="#6b7079" text-anchor="end">150</text>
+      <text x="62" y="366" font-size="10.5" fill="#6b7079" text-anchor="end">200</text>
+
+      <!-- chaos / recovery phase shading -->
+      <rect x="278" y="360" width="186" height="146" fill="#f2495c" fill-opacity="0.06"/>
+      <line x1="278" y1="360" x2="278" y2="506" stroke="#f2495c" stroke-opacity="0.5" stroke-dasharray="3 3"/>
+      <line x1="464" y1="360" x2="464" y2="506" stroke="#56a64b" stroke-opacity="0.5" stroke-dasharray="3 3"/>
+
+      <!-- total request rate: steady ~120 req/s throughout (2xx fill area) -->
+      <path d="M 70 422 L 130 421 L 190 423 L 250 420 L 278 421
+               L 320 442 L 360 470 L 410 482 L 464 470
+               L 520 430 L 580 423 L 620 422 L 620 506 L 70 506 Z"
+            fill="url(#rateFill)"/>
+      <path d="M 70 422 L 130 421 L 190 423 L 250 420 L 278 421
+               L 320 442 L 360 470 L 410 482 L 464 470
+               L 520 430 L 580 423 L 620 422"
+            fill="none" stroke="#5794f2" stroke-width="2.2"/>
+
+      <!-- 5xx series: ~0 then spikes during chaos then back to 0 -->
+      <path d="M 70 505 L 250 505 L 278 503 L 320 470 L 360 430 L 410 416 L 464 470
+               L 510 500 L 560 505 L 620 505"
+            fill="none" stroke="#f2495c" stroke-width="2.4"/>
+
+      <!-- phase captions -->
+      <text x="170" y="378" font-size="10.5" fill="#6b7079" text-anchor="middle">steady</text>
+      <text x="371" y="378" font-size="10.5" font-weight="700" fill="#f2495c" text-anchor="middle">chaos burn</text>
+      <text x="545" y="378" font-size="10.5" font-weight="700" fill="#56a64b" text-anchor="middle">recovered</text>
+
+      <!-- x axis labels -->
+      <text x="70" y="522" font-size="10" fill="#6b7079" text-anchor="middle">12:00</text>
+      <text x="278" y="522" font-size="10" fill="#6b7079" text-anchor="middle">12:20</text>
+      <text x="464" y="522" font-size="10" fill="#6b7079" text-anchor="middle">12:40</text>
+      <text x="620" y="522" font-size="10" fill="#6b7079" text-anchor="middle">13:00</text>
+    </g>
+  </g>
+
+  <!-- Panel: Error Rate 5xx % -->
+  <g>
+    <rect x="656" y="320" width="604" height="210" rx="8" fill="url(#panelGrad)" stroke="#2c2f36"/>
+    <text x="674" y="344" font-size="13.5" font-weight="600" fill="#c7cad0">Error Rate (5xx %)</text>
+    <text x="1242" y="344" font-size="11.5" fill="#9aa0a8" text-anchor="end">SLO threshold 0.1%</text>
+
+    <!-- plot box: x 706..1242, y 360..506 -->
+    <g>
+      <line x1="706" y1="506" x2="1242" y2="506" stroke="#2c2f36"/>
+      <line x1="706" y1="470" x2="1242" y2="470" stroke="#23262c"/>
+      <line x1="706" y1="434" x2="1242" y2="434" stroke="#23262c"/>
+      <line x1="706" y1="398" x2="1242" y2="398" stroke="#23262c"/>
+      <line x1="706" y1="362" x2="1242" y2="362" stroke="#23262c"/>
+      <text x="698" y="510" font-size="10.5" fill="#6b7079" text-anchor="end">0%</text>
+      <text x="698" y="474" font-size="10.5" fill="#6b7079" text-anchor="end">10%</text>
+      <text x="698" y="438" font-size="10.5" fill="#6b7079" text-anchor="end">20%</text>
+      <text x="698" y="402" font-size="10.5" fill="#6b7079" text-anchor="end">30%</text>
+      <text x="698" y="366" font-size="10.5" fill="#6b7079" text-anchor="end">40%</text>
+
+      <!-- chaos shading -->
+      <rect x="908" y="360" width="190" height="146" fill="#f2495c" fill-opacity="0.06"/>
+      <line x1="908" y1="360" x2="908" y2="506" stroke="#f2495c" stroke-opacity="0.5" stroke-dasharray="3 3"/>
+      <line x1="1098" y1="360" x2="1098" y2="506" stroke="#56a64b" stroke-opacity="0.5" stroke-dasharray="3 3"/>
+
+      <!-- SLO threshold line (0.1% -> just above baseline) -->
+      <line x1="706" y1="504" x2="1242" y2="504" stroke="#73bf69" stroke-width="1.2" stroke-dasharray="6 4"/>
+
+      <!-- 5xx % series: ~0, spike to ~30% during chaos, recover -->
+      <path d="M 706 505 L 880 505 L 908 502 L 950 450 L 1000 405 L 1050 400 L 1098 460
+               L 1150 500 L 1200 505 L 1242 505 L 1242 506 L 706 506 Z"
+            fill="url(#errFill)"/>
+      <path d="M 706 505 L 880 505 L 908 502 L 950 450 L 1000 405 L 1050 400 L 1098 460
+               L 1150 500 L 1200 505 L 1242 505"
+            fill="none" stroke="#f2495c" stroke-width="2.6"/>
+
+      <!-- annotation: auto-remediation restart -->
+      <line x1="1098" y1="360" x2="1098" y2="506" stroke="#5794f2" stroke-width="1.4"/>
+      <circle cx="1098" cy="362" r="3.5" fill="#5794f2"/>
+      <text x="1104" y="392" font-size="10" fill="#9db8ee">⎈ rollout restart</text>
+
+      <text x="1003" y="378" font-size="10.5" font-weight="700" fill="#f2495c" text-anchor="middle">chaos burn (~30%)</text>
+
+      <text x="706" y="522" font-size="10" fill="#6b7079" text-anchor="middle">12:00</text>
+      <text x="908" y="522" font-size="10" fill="#6b7079" text-anchor="middle">12:20</text>
+      <text x="1098" y="522" font-size="10" fill="#6b7079" text-anchor="middle">12:40</text>
+      <text x="1242" y="522" font-size="10" fill="#6b7079" text-anchor="middle">13:00</text>
+    </g>
+  </g>
+
+  <!-- ================= Row 3 : Burn-rate (left) + Error budget remaining over time + Latency p99 ================= -->
+
+  <!-- Panel: Error-Budget Burn Rate fast & slow -->
+  <g>
+    <rect x="20" y="544" width="620" height="196" rx="8" fill="url(#panelGrad)" stroke="#2c2f36"/>
+    <text x="38" y="568" font-size="13.5" font-weight="600" fill="#c7cad0">Error-Budget Burn Rate — fast (1h) &amp; slow (6h)</text>
+    <rect x="380" y="558" width="11" height="11" rx="2" fill="#f2495c"/><text x="396" y="568" font-size="11.5" fill="#9aa0a8">fast 1h</text>
+    <rect x="452" y="558" width="11" height="11" rx="2" fill="#ff9830"/><text x="468" y="568" font-size="11.5" fill="#9aa0a8">slow 6h</text>
+    <rect x="524" y="558" width="11" height="11" rx="2" fill="#73bf69"/><text x="540" y="568" font-size="11.5" fill="#9aa0a8">14.4× line</text>
+
+    <!-- plot box: x 70..620, y 584..716 -->
+    <g>
+      <line x1="70" y1="716" x2="620" y2="716" stroke="#2c2f36"/>
+      <line x1="70" y1="684" x2="620" y2="684" stroke="#23262c"/>
+      <line x1="70" y1="652" x2="620" y2="652" stroke="#23262c"/>
+      <line x1="70" y1="620" x2="620" y2="620" stroke="#23262c"/>
+      <line x1="70" y1="588" x2="620" y2="588" stroke="#23262c"/>
+      <text x="62" y="720" font-size="10.5" fill="#6b7079" text-anchor="end">0×</text>
+      <text x="62" y="688" font-size="10.5" fill="#6b7079" text-anchor="end">8×</text>
+      <text x="62" y="656" font-size="10.5" fill="#6b7079" text-anchor="end">16×</text>
+      <text x="62" y="624" font-size="10.5" fill="#6b7079" text-anchor="end">24×</text>
+
+      <!-- 14.4x page threshold line (y ~662) -->
+      <line x1="70" y1="662" x2="620" y2="662" stroke="#73bf69" stroke-width="1.3" stroke-dasharray="6 4"/>
+      <text x="616" y="658" font-size="9.5" fill="#73bf69" text-anchor="end">14.4× (page)</text>
+
+      <!-- chaos shading -->
+      <rect x="278" y="584" width="186" height="132" fill="#f2495c" fill-opacity="0.06"/>
+
+      <!-- fast burn rate: ~0, shoots to ~22x above line, drops after restart -->
+      <path d="M 70 715 L 250 714 L 278 710 L 320 640 L 360 595 L 410 600 L 464 670
+               L 520 712 L 580 715 L 620 715"
+            fill="none" stroke="#f2495c" stroke-width="2.6"/>
+      <!-- slow burn rate: lags, lower peak ~7x, slow decay -->
+      <path d="M 70 716 L 278 715 L 330 700 L 380 678 L 430 672 L 480 680 L 540 700 L 600 712 L 620 714"
+            fill="none" stroke="#ff9830" stroke-width="2.4"/>
+
+      <!-- breach region marker -->
+      <text x="371" y="602" font-size="10" font-weight="700" fill="#f2495c" text-anchor="middle">fast &gt; 14.4× → PAGE</text>
+
+      <text x="70" y="732" font-size="10" fill="#6b7079" text-anchor="middle">12:00</text>
+      <text x="278" y="732" font-size="10" fill="#6b7079" text-anchor="middle">12:20</text>
+      <text x="464" y="732" font-size="10" fill="#6b7079" text-anchor="middle">12:40</text>
+      <text x="620" y="732" font-size="10" fill="#6b7079" text-anchor="middle">13:00</text>
+    </g>
+  </g>
+
+  <!-- Panel: Error Budget Remaining over time -->
+  <g>
+    <rect x="656" y="544" width="300" height="196" rx="8" fill="url(#panelGrad)" stroke="#2c2f36"/>
+    <text x="674" y="568" font-size="13.5" font-weight="600" fill="#c7cad0">Error Budget Remaining (30d)</text>
+
+    <!-- plot box: x 690..936, y 584..716 -->
+    <g>
+      <line x1="690" y1="716" x2="936" y2="716" stroke="#2c2f36"/>
+      <line x1="690" y1="650" x2="936" y2="650" stroke="#23262c"/>
+      <line x1="690" y1="584" x2="936" y2="584" stroke="#23262c"/>
+      <text x="682" y="588" font-size="10" fill="#6b7079" text-anchor="end">100%</text>
+      <text x="682" y="654" font-size="10" fill="#6b7079" text-anchor="end">50%</text>
+      <text x="682" y="720" font-size="10" fill="#6b7079" text-anchor="end">0%</text>
+
+      <!-- remaining drains 100->31 then flattens (recovers/stops draining) -->
+      <path d="M 690 588 L 790 590 L 815 592 L 850 640 L 885 690 L 905 700 L 936 701 L 936 716 L 690 716 Z"
+            fill="#ff9830" fill-opacity="0.12"/>
+      <path d="M 690 588 L 790 590 L 815 592 L 850 640 L 885 690 L 905 700 L 936 701"
+            fill="none" stroke="#ff9830" stroke-width="2.6"/>
+      <!-- recovery flat marker -->
+      <circle cx="905" cy="700" r="3.5" fill="#56a64b"/>
+      <text x="900" y="690" font-size="9.5" fill="#73bf69" text-anchor="end">stops draining</text>
+    </g>
+  </g>
+
+  <!-- Panel: Latency p99 -->
+  <g>
+    <rect x="972" y="544" width="288" height="196" rx="8" fill="url(#panelGrad)" stroke="#2c2f36"/>
+    <text x="990" y="568" font-size="13.5" font-weight="600" fill="#c7cad0">Latency p99 (ms)</text>
+    <text x="1242" y="568" font-size="11" fill="#9aa0a8" text-anchor="end">SLO 500ms</text>
+
+    <!-- plot box: x 1006..1242, y 584..716 -->
+    <g>
+      <line x1="1006" y1="716" x2="1242" y2="716" stroke="#2c2f36"/>
+      <line x1="1006" y1="650" x2="1242" y2="650" stroke="#23262c"/>
+      <line x1="1006" y1="616" x2="1242" y2="616" stroke="#23262c"/>
+      <text x="998" y="720" font-size="10" fill="#6b7079" text-anchor="end">0</text>
+      <text x="998" y="654" font-size="10" fill="#6b7079" text-anchor="end">400</text>
+      <text x="998" y="620" font-size="10" fill="#6b7079" text-anchor="end">600</text>
+
+      <!-- 500ms SLO line (y ~633) -->
+      <line x1="1006" y1="633" x2="1242" y2="633" stroke="#73bf69" stroke-width="1.2" stroke-dasharray="6 4"/>
+
+      <!-- p99: low, spikes over SLO line during chaos, recovers -->
+      <path d="M 1006 700 L 1090 698 L 1110 695 L 1135 620 L 1160 600 L 1185 612 L 1205 690 L 1242 700"
+            fill="none" stroke="#ff9830" stroke-width="2.4"/>
+      <text x="1160" y="592" font-size="9.5" font-weight="700" fill="#f2495c" text-anchor="middle">breaches 500ms</text>
+    </g>
+  </g>
+
+  <!-- watermark overlay (above panels, low opacity so panels stay legible) -->
+  <rect x="0" y="86" width="1280" height="674" fill="url(#wm)" pointer-events="none"/>
+
+  <!-- footer attribution / honesty restated -->
+  <text x="20" y="754" font-size="10.5" fill="#5c616a">
+    Diagram of dashboard uid `demo-api-slo-burn` (observability/grafana/dashboards/demo-api-slo-burn.json). Numbers are illustrative.
+  </text>
+  <text x="1260" y="754" font-size="10.5" fill="#5c616a" text-anchor="end">my-project · local kind demo (cluster: my-project-local)</text>
+</svg>

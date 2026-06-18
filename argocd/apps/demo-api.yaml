@@ -27,9 +27,9 @@ spec:
   project: my-project
 
   source:
-    repoURL: https://github.com/charanvamsy/my-project.git
+    repoURL: https://github.com/charanvamsy26/my-project.git
     targetRevision: main
-    # Local Helm chart for the Flask service (image ghcr.io/charanvamsy/demo-api:<tag>, port 8000,
+    # Local Helm chart for the Flask service (image ghcr.io/charanvamsy26/demo-api:<tag>, port 8000,
     # /healthz /readyz / /metrics). Pinned image tags live in the values file — never :latest.
     path: kubernetes/charts/demo-api
     helm:

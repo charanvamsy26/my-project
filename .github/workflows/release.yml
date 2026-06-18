@@ -56,7 +56,7 @@ jobs:
             ## my-project ${{ steps.semver.outputs.tag }}
 
             Container image (published by `app-ci` on main):
-            `ghcr.io/charanvamsy/demo-api:${{ steps.semver.outputs.tag }}`
+            `ghcr.io/charanvamsy26/demo-api:${{ steps.semver.outputs.tag }}`
 
             See the auto-generated notes below for the full changelog.
         env:

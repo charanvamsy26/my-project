@@ -59,7 +59,7 @@ satisfies all of them:
 | `K8sRequireResources` (deny)                    | `requests` + `limits` for both cpu and memory. |
 | `K8sRequireSecurityContext` (deny)              | `runAsNonRoot: true`, `runAsUser: 10001`, `capabilities.drop: [ALL]`, `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, `seccompProfile: RuntimeDefault`. |
 | `K8sRequireProbes` (dryrun→deny)                | `livenessProbe` (exec: python is alive) + `readinessProbe` (exec: heartbeat file fresh < 90s). |
-| `K8sAllowedRegistries` (deny)                   | Image `ghcr.io/charanvamsy/auto-remediation:0.1.0` matches the `ghcr.io/charanvamsy/` prefix. |
+| `K8sAllowedRegistries` (deny)                   | Image `ghcr.io/charanvamsy26/auto-remediation:0.1.0` matches the `ghcr.io/charanvamsy26/` prefix. |
 | `K8sDisallowLatestTag` (deny)                   | Explicit `:0.1.0` tag — never `:latest`. |
 | `K8sRequiredLabels` (deny)                      | `app.kubernetes.io/name`, `app.kubernetes.io/part-of`, `app.kubernetes.io/managed-by: kustomize`. |
 | `K8sBlockDefaultNamespace` (deny)               | Deploys to `sre-tools`, never `default`. |

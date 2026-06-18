@@ -14,7 +14,7 @@ This document describes how `my-project` works end to end — from a developer's
 
 ```mermaid
 graph TD
-  Dev["Developer"] -->|"git push / open PR"| GH["GitHub repo<br/>charanvamsy/my-project"]
+  Dev["Developer"] -->|"git push / open PR"| GH["GitHub repo<br/>charanvamsy26/my-project"]
 
   subgraph CI["GitHub Actions (least-privilege, OIDC)"]
     direction TB
@@ -26,7 +26,7 @@ graph TD
   end
 
   GH --> CI
-  APP -->|"docker push (main only)"| GHCR[("ghcr.io/charanvamsy/demo-api")]
+  APP -->|"docker push (main only)"| GHCR[("ghcr.io/charanvamsy26/demo-api")]
 
   GH -->|"watches main (manifests + charts)"| ARGO["ArgoCD<br/>app-of-apps"]
 
@@ -116,4 +116,4 @@ graph TD
 
 ## Shared constants
 
-Region `us-east-1`; project tag `my-project`; image `ghcr.io/charanvamsy/demo-api`; service port `8000`; namespaces `demo` / `monitoring` / `gatekeeper-system` / `argocd`; Kubernetes `1.30`. Every component uses these identically, which is what lets the pieces interlock without glue code.
+Region `us-east-1`; project tag `my-project`; image `ghcr.io/charanvamsy26/demo-api`; service port `8000`; namespaces `demo` / `monitoring` / `gatekeeper-system` / `argocd`; Kubernetes `1.30`. Every component uses these identically, which is what lets the pieces interlock without glue code.

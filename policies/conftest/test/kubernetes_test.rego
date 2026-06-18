@@ -34,7 +34,7 @@ good_demo_api := {
 				"securityContext": {"runAsNonRoot": true},
 				"containers": [{
 					"name": "demo-api",
-					"image": "ghcr.io/charanvamsy/demo-api:1.0.0",
+					"image": "ghcr.io/charanvamsy26/demo-api:1.0.0",
 					"ports": [{"containerPort": 8000}],
 					"resources": {
 						"requests": {"cpu": "50m", "memory": "64Mi"},

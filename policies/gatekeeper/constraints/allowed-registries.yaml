@@ -1,7 +1,7 @@
 # Constraint: only allow images from ghcr.io (first-party) + our ECR (mirrors).
 # enforcementAction: deny  (supply-chain: arbitrary public images are forbidden)
 #
-# demo-api uses ghcr.io/charanvamsy/demo-api:<tag> -> matches the "ghcr.io/charanvamsy/"
+# demo-api uses ghcr.io/charanvamsy26/demo-api:<tag> -> matches the "ghcr.io/charanvamsy26/"
 # prefix, so it complies. Replace <account_id> below with the AWS account id (or
 # template it via Kustomize/Helm/Argo) — it is the only environment-specific value.
 #
@@ -29,8 +29,8 @@ spec:
       - kube-public
   parameters:
     registries:
-      # First-party images built by GitHub Actions in the charanvamsy org.
-      - "ghcr.io/charanvamsy/"
+      # First-party images built by GitHub Actions in the charanvamsy26 org.
+      - "ghcr.io/charanvamsy26/"
       # Private ECR in us-east-1. <account_id> is the AWS account number.
       - "<account_id>.dkr.ecr.us-east-1.amazonaws.com/"
     exemptImages: []

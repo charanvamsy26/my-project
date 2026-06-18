@@ -7,7 +7,7 @@ workload — platform add-ons and the `demo-api` service — straight from Git. 
 state is whatever `main` says it should be, and drift is corrected automatically.
 
 > Target cluster: `my-project-dev` / `my-project-prod` (EKS 1.30, `us-east-1`, multi-AZ).
-> Source of truth: `https://github.com/charanvamsy/my-project.git` @ `main`.
+> Source of truth: `https://github.com/charanvamsy26/my-project.git` @ `main`.
 
 ---
 
@@ -128,7 +128,7 @@ These are scoped narrowly (specific `group`/`kind`/`jsonPointers`) so real drift
 ## Conventions enforced here
 
 - **One Application per file** in `argocd/apps/` — clean diffs, easy ownership.
-- **`repoURL: https://github.com/charanvamsy/my-project.git`**, **`targetRevision: main`** everywhere.
+- **`repoURL: https://github.com/charanvamsy26/my-project.git`**, **`targetRevision: main`** everywhere.
 - **Pinned chart versions** (`targetRevision` on Helm sources) — never float to "latest".
 - **No `:latest` images** anywhere in the rendered output.
 - **`finalizers: [resources-finalizer.argocd.argoproj.io]`** on every Application so deleting an

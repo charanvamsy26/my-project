@@ -48,7 +48,7 @@ The `demo-api` Helm chart and image are hardened end to end:
 
 Same intent, enforced twice — see [`policies/`](../policies/):
 
-- **Runtime (OPA Gatekeeper):** 8 ConstraintTemplates + Constraints — required labels, disallow `:latest`/untagged, require CPU+memory requests/limits, `runAsNonRoot` + drop ALL caps + no privilege escalation, allowed registries (`ghcr.io/charanvamsy` + ECR), require probes, block the `default` namespace, and an optional require-PDB. Six critical rules ship as **deny**, two as **dryrun** with a documented promotion checklist.
+- **Runtime (OPA Gatekeeper):** 8 ConstraintTemplates + Constraints — required labels, disallow `:latest`/untagged, require CPU+memory requests/limits, `runAsNonRoot` + drop ALL caps + no privilege escalation, allowed registries (`ghcr.io/charanvamsy26` + ECR), require probes, block the `default` namespace, and an optional require-PDB. Six critical rules ship as **deny**, two as **dryrun** with a documented promotion checklist.
 - **Shift-left (Conftest):** the same rules applied to Terraform plans and rendered manifests at PR time, plus IaC guardrails (no public S3, no open SSH/RDP, encryption at rest).
 
 Both layers are verified: `opa check --strict --v1-compatible` passes clean, 26/26 Conftest unit tests pass, and `demo-api` is proven compliant (a compliant Pod yields zero violations; a deliberately bad Pod fires every rule).

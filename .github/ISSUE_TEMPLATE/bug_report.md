@@ -3,7 +3,7 @@ name: Bug report
 about: Report a defect in infrastructure, the demo-api app, or CI/CD
 title: "[bug] <short description>"
 labels: [bug, triage]
-assignees: charanvamsy
+assignees: charanvamsy26
 ---
 
 ## Description
@@ -24,7 +24,7 @@ assignees: charanvamsy
 
 - **Environment:** <!-- dev (my-project-dev) / prod (my-project-prod) -->
 - **Region:** us-east-1
-- **Component version / image tag:** <!-- e.g. ghcr.io/charanvamsy/demo-api:<tag> -->
+- **Component version / image tag:** <!-- e.g. ghcr.io/charanvamsy26/demo-api:<tag> -->
 
 ## Steps to reproduce
 

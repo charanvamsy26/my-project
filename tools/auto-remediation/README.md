@@ -220,8 +220,8 @@ Manifests are in [`deploy/`](deploy/) (Kustomize). They install into the
 
 ```bash
 # Build the image (CI does this; tag with a real version / git SHA, never :latest):
-docker build -t ghcr.io/charanvamsy/auto-remediation:0.1.0 tools/auto-remediation/
-docker push  ghcr.io/charanvamsy/auto-remediation:0.1.0
+docker build -t ghcr.io/charanvamsy26/auto-remediation:0.1.0 tools/auto-remediation/
+docker push  ghcr.io/charanvamsy26/auto-remediation:0.1.0
 
 # Render for review:
 kustomize build tools/auto-remediation/deploy/

@@ -6,7 +6,7 @@ Deployment plus Service, ServiceAccount, ALB Ingress, HorizontalPodAutoscaler,
 ConfigMap, ServiceMonitor (Prometheus Operator), PodDisruptionBudget, and a
 NetworkPolicy.
 
-* Image: `ghcr.io/charanvamsy/demo-api:<tag>` (never `:latest`)
+* Image: `ghcr.io/charanvamsy26/demo-api:<tag>` (never `:latest`)
 * Namespace: `demo`
 * Ingress: AWS Load Balancer Controller (ALB), host `demo-api.example.com`
 * Metrics: scraped via ServiceMonitor by kube-prometheus-stack
@@ -78,7 +78,7 @@ the cluster.
 | Key                  | Default                          | Description |
 | -------------------- | -------------------------------- | ----------- |
 | `replicaCount`       | `2`                              | Replicas when autoscaling is disabled (initial count when enabled). |
-| `image.repository`   | `ghcr.io/charanvamsy/demo-api`   | Image repo. |
+| `image.repository`   | `ghcr.io/charanvamsy26/demo-api`   | Image repo. |
 | `image.pullPolicy`   | `IfNotPresent`                   | Correct for immutable tags. |
 | `image.tag`          | `""` → `Chart.appVersion`        | Image tag; set explicitly in CI/CD. |
 | `imagePullSecrets`   | `[]`                             | Pull secrets for private registries. |

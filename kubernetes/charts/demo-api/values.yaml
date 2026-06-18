@@ -9,7 +9,7 @@ replicaCount: 2
 
 image:
   # -- Container image repository. We always publish to GHCR.
-  repository: ghcr.io/charanvamsy/demo-api
+  repository: ghcr.io/charanvamsy26/demo-api
   # -- Image pull policy. IfNotPresent is correct because we use immutable,
   # versioned tags (never :latest).
   pullPolicy: IfNotPresent

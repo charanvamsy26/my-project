@@ -5,7 +5,7 @@ Thanks for your interest. This repository is a production-grade reference platfo
 ## Ground rules
 
 - **GitOps is the write path to clusters.** Don't `kubectl apply` changes you intend to keep — change the manifest/chart/values in Git and let ArgoCD reconcile. Manual edits are reverted by `selfHeal`.
-- **Use the shared constants.** Region `us-east-1`, project tag `my-project`, image `ghcr.io/charanvamsy/demo-api`, port `8000`, namespaces `demo` / `monitoring` / `gatekeeper-system` / `argocd`, Kubernetes `1.30`. Coherence across components depends on these being identical everywhere.
+- **Use the shared constants.** Region `us-east-1`, project tag `my-project`, image `ghcr.io/charanvamsy26/demo-api`, port `8000`, namespaces `demo` / `monitoring` / `gatekeeper-system` / `argocd`, Kubernetes `1.30`. Coherence across components depends on these being identical everywhere.
 - **Naming:** kebab-case for Kubernetes resources and filenames; snake_case for Terraform variables.
 - **Tag everything** with `Environment`, `Project=my-project`, and `ManagedBy=terraform`.
 - **No secrets in Git, ever.** Use AWS Secrets Manager or Kubernetes Secrets sourced at runtime. gitleaks will catch you; the ArgoCD AppProject blocks Git-sourced `Secret` resources.

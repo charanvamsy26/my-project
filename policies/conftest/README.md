@@ -99,7 +99,7 @@ Across inline ingress, `aws_security_group_rule`, and
 ### `kubernetes.rego`
 For workload kinds (Deployment/StatefulSet/DaemonSet/Job/CronJob/Pod/ReplicaSet):
 - **deny** `:latest` / untagged images
-- **deny** images not from `ghcr.io/charanvamsy/` or `<account_id>.dkr.ecr.us-east-1.amazonaws.com/`
+- **deny** images not from `ghcr.io/charanvamsy26/` or `<account_id>.dkr.ecr.us-east-1.amazonaws.com/`
 - **deny** containers missing cpu/memory **requests and limits**
 - **deny** containers not `runAsNonRoot`, not dropping `ALL` caps, or allowing
   privilege escalation

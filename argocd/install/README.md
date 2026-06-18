@@ -40,5 +40,5 @@ Vendoring the ~25k-line manifest into the repo would bloat it and turn upgrades 
 - Front `argocd-server` with the **AWS Load Balancer Controller** ALB + ACM TLS, restrict to the
   corp CIDR, and disable the `--insecure` server flag.
 - Wire **SSO/OIDC** and bind the `read-only` / `platform-admin` project roles to real IdP groups
-  (placeholders `charanvamsy:engineering` and `charanvamsy:platform-sre` are in `appproject.yaml`).
+  (placeholders `charanvamsy26:engineering` and `charanvamsy26:platform-sre` are in `appproject.yaml`).
 - Store the initial admin secret rotation and enable **RBAC `policy.default: role:readonly`**.

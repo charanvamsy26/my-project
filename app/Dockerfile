@@ -6,7 +6,7 @@
 #
 # Result: a small image with no build toolchain, running as a non-root user,
 # serving gunicorn on :8000. Image is published as
-# ghcr.io/charanvamsy/demo-api:<tag> (never :latest in deployments).
+# ghcr.io/charanvamsy26/demo-api:<tag> (never :latest in deployments).
 
 # --------------------------------------------------------------------------- #
 # Stage 1 — builder

@@ -13,7 +13,7 @@
 #   Role name:  my-project-gha-terraform-plan
 #   Trust:      token.actions.githubusercontent.com (GitHub OIDC provider)
 #   Condition:  aud = sts.amazonaws.com
-#               sub = repo:charanvamsy/my-project:*  (scope tighter per env if desired)
+#               sub = repo:charanvamsy26/my-project:*  (scope tighter per env if desired)
 #   Policy:     read-only-ish plan permissions + S3 state RW + DynamoDB lock RW.
 #   The role ARN is provided to the workflow via the repo variable AWS_PLAN_ROLE_ARN
 #   (Settings -> Secrets and variables -> Actions -> Variables). Documented in

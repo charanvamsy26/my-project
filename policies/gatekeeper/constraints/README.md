@@ -61,17 +61,17 @@ full exemption model.
 
 ## demo-api compliance (verified by design)
 
-`demo-api` (namespace `demo`, image `ghcr.io/charanvamsy/demo-api:<tag>`, port 8000)
+`demo-api` (namespace `demo`, image `ghcr.io/charanvamsy26/demo-api:<tag>`, port 8000)
 satisfies every `deny` constraint. Each rule below maps to the chart values the
 demo-api Helm template renders:
 
 | Constraint | What demo-api provides | Pass? |
 | ---------- | ---------------------- | :---: |
 | Required labels | `app.kubernetes.io/name: demo-api`, `app.kubernetes.io/part-of: my-project`, `app.kubernetes.io/managed-by: Helm` (set by Helm's standard labels helper) | ✅ |
-| Disallow :latest | image is `ghcr.io/charanvamsy/demo-api:<tag>` — explicit version tag, never `:latest`, never untagged | ✅ |
+| Disallow :latest | image is `ghcr.io/charanvamsy26/demo-api:<tag>` — explicit version tag, never `:latest`, never untagged | ✅ |
 | Require resources | container sets `resources.requests.{cpu,memory}` **and** `resources.limits.{cpu,memory}` | ✅ |
 | Security context | pod `runAsNonRoot: true`; container `allowPrivilegeEscalation: false`, `capabilities.drop: [ALL]`, not privileged | ✅ |
-| Allowed registries | image prefix `ghcr.io/charanvamsy/` is in the allow-list | ✅ |
+| Allowed registries | image prefix `ghcr.io/charanvamsy26/` is in the allow-list | ✅ |
 | Block default ns | deploys to `demo`, not `default` | ✅ |
 | Require probes *(dryrun)* | `livenessProbe` → `GET /healthz:8000`, `readinessProbe` → `GET /readyz:8000` | ✅ |
 | Require PDB *(dryrun)* | optional; if a PDB ships it must select `app.kubernetes.io/name: demo-api`; single-replica deploys are below the `minReplicas: 2` threshold | ✅ |
@@ -91,7 +91,7 @@ demo-api Helm template renders:
 >     seccompProfile: { type: RuntimeDefault }
 >   containers:
 >     - name: demo-api
->       image: ghcr.io/charanvamsy/demo-api:1.0.0      # explicit tag, allowed registry
+>       image: ghcr.io/charanvamsy26/demo-api:1.0.0      # explicit tag, allowed registry
 >       ports: [{ containerPort: 8000 }]
 >       resources:
 >         requests: { cpu: 50m,  memory: 64Mi }

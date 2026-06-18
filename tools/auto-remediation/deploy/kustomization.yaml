@@ -32,5 +32,5 @@ resources:
 
 images:
   # Single source of truth for the image tag — bump here on release.
-  - name: ghcr.io/charanvamsy/auto-remediation
+  - name: ghcr.io/charanvamsy26/auto-remediation
     newTag: "0.1.0"

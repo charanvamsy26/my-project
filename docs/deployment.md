@@ -12,7 +12,7 @@ End-to-end procedure to stand up `my-project` from nothing to a running, GitOps-
 | `helm` | >= 3.12 | Chart rendering / debugging |
 | `argocd` CLI | >= 2.13 | Inspect Applications |
 
-You also need: an AWS account with permissions to create VPC/EKS/IAM/RDS/S3/DynamoDB/KMS, and a registered ACM certificate (or accept that the ALB Ingress provisions without HTTPS until you supply one). The container image `ghcr.io/charanvamsy/demo-api` is published by `app-ci.yml` on pushes to `main`.
+You also need: an AWS account with permissions to create VPC/EKS/IAM/RDS/S3/DynamoDB/KMS, and a registered ACM certificate (or accept that the ALB Ingress provisions without HTTPS until you supply one). The container image `ghcr.io/charanvamsy26/demo-api` is published by `app-ci.yml` on pushes to `main`.
 
 > Sanity check before you start: `aws sts get-caller-identity` should return the account you intend to deploy into.
 

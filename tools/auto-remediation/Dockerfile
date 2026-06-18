@@ -6,13 +6,13 @@
 #                    digest-pinned base, run as an unprivileged user.
 #
 # Complies with the platform Gatekeeper constraints when deployed:
-#   * image from ghcr.io/charanvamsy/... with an explicit, non-:latest tag
+#   * image from ghcr.io/charanvamsy26/... with an explicit, non-:latest tag
 #   * runs as non-root (USER 10001); the manifest also drops ALL caps +
 #     readOnlyRootFilesystem (this image writes nothing outside /tmp).
 #
 # Build/push (CI does this; tag with the git SHA, never :latest):
-#   docker build -t ghcr.io/charanvamsy/auto-remediation:0.1.0 .
-#   docker push  ghcr.io/charanvamsy/auto-remediation:0.1.0
+#   docker build -t ghcr.io/charanvamsy26/auto-remediation:0.1.0 .
+#   docker push  ghcr.io/charanvamsy26/auto-remediation:0.1.0
 # =============================================================================
 
 # Pin the base by tag AND digest so rebuilds are reproducible and supply-chain
@@ -44,7 +44,7 @@ FROM ${PYTHON_BASE} AS runtime
 # OCI labels for provenance.
 LABEL org.opencontainers.image.title="auto-remediation" \
       org.opencontainers.image.description="Self-healing controller for demo-api SLO burn" \
-      org.opencontainers.image.source="https://github.com/charanvamsy/my-project" \
+      org.opencontainers.image.source="https://github.com/charanvamsy26/my-project" \
       org.opencontainers.image.licenses="MIT"
 
 ENV PYTHONUNBUFFERED=1 \

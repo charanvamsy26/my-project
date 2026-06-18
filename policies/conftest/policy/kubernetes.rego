@@ -18,7 +18,7 @@ import future.keywords.if
 import future.keywords.in
 
 # First-party registry prefix (anchored: must be at the start of the reference).
-ghcr_prefix := "ghcr.io/charanvamsy/"
+ghcr_prefix := "ghcr.io/charanvamsy26/"
 
 # ECR uses <account_id>.dkr.ecr.us-east-1.amazonaws.com/ — account id varies, so we
 # match on the registry host shape with a regex anchored at the start of the string.

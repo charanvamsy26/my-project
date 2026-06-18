@@ -97,5 +97,5 @@ docker push "$ECR"
 
 Then set the Job's `image:` to that `$ECR` value (replace `<account_id>` with the
 real AWS account number). If you mirror into GHCR instead, use
-`ghcr.io/charanvamsy/k6:0.50.0`. `<account_id>` is the only environment-specific
+`ghcr.io/charanvamsy26/k6:0.50.0`. `<account_id>` is the only environment-specific
 placeholder — everything else is real and runnable.

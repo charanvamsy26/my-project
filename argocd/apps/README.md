@@ -20,7 +20,7 @@ workload is wave 2 so it lands only after everything it depends on is Healthy. S
 
 ## Conventions (all files)
 
-- `repoURL: https://github.com/charanvamsy/my-project.git`, `targetRevision: main`.
+- `repoURL: https://github.com/charanvamsy26/my-project.git`, `targetRevision: main`.
 - `project: my-project` (inherits the `AppProject` guardrails from `../install/appproject.yaml`).
 - Automated sync with `prune: true` + `selfHeal: true`, `allowEmpty: false`.
 - `ServerSideApply=true` everywhere (large CRDs exceed the client-side annotation limit).

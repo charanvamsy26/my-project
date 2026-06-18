@@ -15,9 +15,9 @@ appVersion: "0.1.0"
 
 kubeVersion: ">=1.30.0-0"
 
-home: https://github.com/charanvamsy/my-project
+home: https://github.com/charanvamsy26/my-project
 sources:
-  - https://github.com/charanvamsy/my-project
+  - https://github.com/charanvamsy26/my-project
 
 keywords:
   - flask
@@ -26,8 +26,8 @@ keywords:
   - prometheus
 
 maintainers:
-  - name: charanvamsy
-    url: https://github.com/charanvamsy
+  - name: charanvamsy26
+    url: https://github.com/charanvamsy26
 
 annotations:
   # Surfaced by ArgoCD / chart UIs.

@@ -28,7 +28,7 @@ Every directory is self-documenting (each carries its own `README.md`), every co
 ```mermaid
 graph LR
   Dev[Developer] -->|git push / PR| GH[GitHub]
-  GH -->|GitHub Actions CI| GHCR[(ghcr.io/charanvamsy/demo-api)]
+  GH -->|GitHub Actions CI| GHCR[(ghcr.io/charanvamsy26/demo-api)]
   GH -->|app-of-apps| Argo[ArgoCD]
 
   subgraph AWS["AWS - us-east-1 (multi-AZ a/b/c)"]
@@ -246,4 +246,4 @@ cd ../../bootstrap && terraform destroy             # force_destroy defaults to 
 
 ## License
 
-[MIT](LICENSE) © 2026 charanvamsy
+[MIT](LICENSE) © 2026 charanvamsy26

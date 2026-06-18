@@ -7,7 +7,7 @@ like a real service so it can exercise the full stack: **EKS** scheduling, the
 (ServiceMonitor scraping), **ArgoCD** GitOps delivery, and **OPA Gatekeeper**
 policy enforcement.
 
-Container image: `ghcr.io/charanvamsy/demo-api:<tag>` (we never deploy
+Container image: `ghcr.io/charanvamsy26/demo-api:<tag>` (we never deploy
 `:latest`). Kubernetes namespace: `demo`.
 
 ## Endpoints
@@ -150,8 +150,8 @@ curl -i localhost:8000/readyz
 
 ```bash
 # from app/
-docker build -t ghcr.io/charanvamsy/demo-api:0.1.0 .
-docker run --rm -p 8000:8000 ghcr.io/charanvamsy/demo-api:0.1.0
+docker build -t ghcr.io/charanvamsy26/demo-api:0.1.0 .
+docker run --rm -p 8000:8000 ghcr.io/charanvamsy26/demo-api:0.1.0
 curl localhost:8000/healthz
 ```
 

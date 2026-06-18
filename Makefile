@@ -21,7 +21,7 @@ HELM_DIR       := kubernetes/charts
 K8S_DIR        := kubernetes/namespaces
 POLICY_DIR     := policies
 
-IMAGE          ?= ghcr.io/charanvamsy/demo-api
+IMAGE          ?= ghcr.io/charanvamsy26/demo-api
 TAG            ?= dev
 K8S_VERSION    ?= 1.30.0
 

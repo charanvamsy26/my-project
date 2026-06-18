@@ -22,7 +22,7 @@ spec:
   project: my-project
 
   source:
-    repoURL: https://github.com/charanvamsy/my-project.git
+    repoURL: https://github.com/charanvamsy26/my-project.git
     targetRevision: main
     # The folder of child Application YAMLs. `directory.recurse` lets us nest if needed later.
     path: argocd/apps

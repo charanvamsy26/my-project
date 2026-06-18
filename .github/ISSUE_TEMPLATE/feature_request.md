@@ -3,7 +3,7 @@ name: Feature request
 about: Propose an enhancement to the platform, app, or tooling
 title: "[feat] <short description>"
 labels: [enhancement, triage]
-assignees: charanvamsy
+assignees: charanvamsy26
 ---
 
 ## Problem / motivation

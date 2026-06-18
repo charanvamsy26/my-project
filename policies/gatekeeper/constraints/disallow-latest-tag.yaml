@@ -1,7 +1,7 @@
 # Constraint: disallow mutable image tags (:latest / untagged) on Pods.
 # enforcementAction: deny  (mutable images break reproducibility & rollbacks)
 #
-# demo-api is deployed as ghcr.io/charanvamsy/demo-api:<tag> with an explicit
+# demo-api is deployed as ghcr.io/charanvamsy26/demo-api:<tag> with an explicit
 # version tag (the Helm chart pins .Values.image.tag to the chart appVersion / a
 # git SHA), so it complies. Matching on Pod catches Deployments, Jobs, CronJobs,
 # bare Pods — everything that produces containers.

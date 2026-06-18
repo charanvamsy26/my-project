@@ -9,7 +9,7 @@ change only triggers the pipelines it can actually affect.
 | Workflow         | Triggers                                  | What it does |
 |------------------|-------------------------------------------|--------------|
 | `terraform.yml`  | PR touching `terraform/**`                | `fmt -check`, `init -backend=false`, `validate`, `tflint`, `tfsec` + `checkov`, then an **OIDC-authenticated `plan`** matrixed over `dev`/`prod`. Posts the plan as a sticky PR comment. |
-| `app-ci.yml`     | `app/**` on PR + push to `main`           | Python setup, `ruff` lint/format, `pytest`, Docker build, **Trivy** image scan, push to `ghcr.io/charanvamsy/demo-api` on `main` (via `GITHUB_TOKEN`). Uses `docker/build-push-action` with GHA layer cache. |
+| `app-ci.yml`     | `app/**` on PR + push to `main`           | Python setup, `ruff` lint/format, `pytest`, Docker build, **Trivy** image scan, push to `ghcr.io/charanvamsy26/demo-api` on `main` (via `GITHUB_TOKEN`). Uses `docker/build-push-action` with GHA layer cache. |
 | `helm-ci.yml`    | `kubernetes/**`, `argocd/**`, `policies/**` | `helm lint`, `helm template` → **kubeconform** (k8s 1.30), and Gatekeeper `ConstraintTemplate` Rego compile via `opa check` + `conftest`. |
 | `security.yml`   | PR + push to `main` + daily schedule      | **gitleaks** (secrets), **checkov** (IaC), **trivy fs** (deps/secrets/misconfig). Uploads SARIF to GitHub code scanning. |
 | `release.yml`    | push of a `vX.Y.Z` tag                    | Generates SemVer release notes and publishes a GitHub Release (pre-release detection for `-rc` tags). |
@@ -42,15 +42,15 @@ Trust policy (replace `<account_id>`):
     "Action": "sts:AssumeRoleWithWebIdentity",
     "Condition": {
       "StringEquals": { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" },
-      "StringLike":   { "token.actions.githubusercontent.com:sub": "repo:charanvamsy/my-project:*" }
+      "StringLike":   { "token.actions.githubusercontent.com:sub": "repo:charanvamsy26/my-project:*" }
     }
   }]
 }
 ```
 
 > Tighten `sub` per environment for stronger isolation, e.g.
-> `repo:charanvamsy/my-project:pull_request` or
-> `repo:charanvamsy/my-project:ref:refs/heads/main`.
+> `repo:charanvamsy26/my-project:pull_request` or
+> `repo:charanvamsy26/my-project:ref:refs/heads/main`.
 
 Permissions: attach a policy granting **read access for plan** plus read/write to
 the remote-state backend:

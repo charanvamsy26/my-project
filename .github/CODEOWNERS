@@ -8,23 +8,23 @@
 # Later matches win, so order from general -> specific.
 
 # Default owner for everything not matched below.
-*                           @charanvamsy
+*                           @charanvamsy26
 
 # --- Infrastructure ---------------------------------------------------------
-/terraform/                 @charanvamsy
-/terraform/environments/prod/  @charanvamsy   # prod changes warrant extra care
+/terraform/                 @charanvamsy26
+/terraform/environments/prod/  @charanvamsy26   # prod changes warrant extra care
 
 # --- Kubernetes / Helm / GitOps --------------------------------------------
-/helm/                      @charanvamsy
-/k8s/                       @charanvamsy
+/helm/                      @charanvamsy26
+/k8s/                       @charanvamsy26
 
 # --- Policy (OPA Gatekeeper) -----------------------------------------------
-/policy/                    @charanvamsy
+/policy/                    @charanvamsy26
 
 # --- Application ------------------------------------------------------------
-/app/                       @charanvamsy
+/app/                       @charanvamsy26
 
 # --- CI/CD + repo automation (this builder's domain) ------------------------
-/.github/                   @charanvamsy
-/Makefile                   @charanvamsy
-/.pre-commit-config.yaml    @charanvamsy
+/.github/                   @charanvamsy26
+/Makefile                   @charanvamsy26
+/.pre-commit-config.yaml    @charanvamsy26

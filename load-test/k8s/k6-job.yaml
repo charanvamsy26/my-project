@@ -16,14 +16,14 @@
 #
 # COMPLIANCE (Gatekeeper constraints in policies/gatekeeper/constraints):
 #   * Image: docker.io/grafana/k6 is NOT an allowed registry (K8sAllowedRegistries
-#     permits only ghcr.io/charanvamsy/ and the private ECR). We therefore
+#     permits only ghcr.io/charanvamsy26/ and the private ECR). We therefore
 #     reference the image through the ECR MIRROR path below. Mirror the pinned
 #     upstream tag once:
 #       UPSTREAM=grafana/k6:0.50.0
 #       ECR=<account_id>.dkr.ecr.us-east-1.amazonaws.com/mirror/grafana/k6:0.50.0
 #       docker pull $UPSTREAM && docker tag $UPSTREAM $ECR && docker push $ECR
 #     Replace <account_id> with the real AWS account number (us-east-1). If your
-#     cluster mirrors into GHCR instead, use ghcr.io/charanvamsy/k6:0.50.0.
+#     cluster mirrors into GHCR instead, use ghcr.io/charanvamsy26/k6:0.50.0.
 #   * Tag is pinned (0.50.0) — never :latest (K8sDisallowLatestTag: deny).
 #   * cpu+memory requests AND limits set (K8sRequireResources: deny).
 #   * runAsNonRoot + drop ALL caps + readOnlyRootFilesystem + no privesc

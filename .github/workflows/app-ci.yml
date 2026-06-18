@@ -29,7 +29,7 @@ concurrency:
 env:
   PYTHON_VERSION: "3.12"
   # Single source of truth for the image coordinates used across jobs.
-  IMAGE: "ghcr.io/charanvamsy/demo-api"
+  IMAGE: "ghcr.io/charanvamsy26/demo-api"
 
 jobs:
   # ---------------------------------------------------------------------------

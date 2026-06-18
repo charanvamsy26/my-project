@@ -11,7 +11,7 @@
 #   * resources.requests + resources.limits (cpu+memory)   -> K8sRequireResources
 #   * runAsNonRoot + capabilities.drop:[ALL] + RO rootfs   -> K8sRequireSecurityContext
 #   * liveness + readiness probes                          -> K8sRequireProbes
-#   * image ghcr.io/charanvamsy/... with explicit tag      -> K8sAllowedRegistries
+#   * image ghcr.io/charanvamsy26/... with explicit tag      -> K8sAllowedRegistries
 #                                                            + K8sDisallowLatestTag
 #   * app.kubernetes.io/{name,part-of} + managed-by:kustomize -> K8sRequiredLabels
 #   * not in `default` namespace                           -> K8sBlockDefaultNamespace
@@ -65,7 +65,7 @@ spec:
       containers:
         - name: auto-remediation
           # Explicit, immutable tag (never :latest); registry is first-party GHCR.
-          image: ghcr.io/charanvamsy/auto-remediation:0.1.0
+          image: ghcr.io/charanvamsy26/auto-remediation:0.1.0
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false

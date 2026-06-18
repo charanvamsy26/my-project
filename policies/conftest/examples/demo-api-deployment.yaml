@@ -27,7 +27,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: demo-api
-          image: ghcr.io/charanvamsy/demo-api:1.0.0   # explicit tag, allowed registry
+          image: ghcr.io/charanvamsy26/demo-api:1.0.0   # explicit tag, allowed registry
           ports:
             - containerPort: 8000
           resources:

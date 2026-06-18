@@ -25,7 +25,7 @@ spec:
   # No app in this project can sync from any other Git host/org — eliminates a whole class of
   # supply-chain attacks via PRs that swap repoURL.
   sourceRepos:
-    - https://github.com/charanvamsy/my-project.git
+    - https://github.com/charanvamsy26/my-project.git
     # Helm repositories used by child apps (pinned charts pull from these registries).
     - https://prometheus-community.github.io/helm-charts
     - https://open-policy-agent.github.io/gatekeeper/charts
@@ -89,7 +89,7 @@ spec:
       policies:
         - p, proj:my-project:read-only, applications, get, my-project/*, allow
       groups:
-        - charanvamsy:engineering
+        - charanvamsy26:engineering
 
     # Platform/SRE role — may sync and (re)deploy, but NOT delete Applications or override
     # the project guardrails. Deletion stays a deliberate, separately-privileged action.
@@ -102,7 +102,7 @@ spec:
         - p, proj:my-project:platform-admin, applications, override, my-project/*, allow
         - p, proj:my-project:platform-admin, applications, delete, my-project/*, deny
       groups:
-        - charanvamsy:platform-sre
+        - charanvamsy26:platform-sre
 
   # Only allow syncing to these git revisions/labels for orphaned-resource detection.
   orphanedResources:

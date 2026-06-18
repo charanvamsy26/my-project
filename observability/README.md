@@ -67,7 +67,7 @@ Grafana datasource model leaves room to add them later without restructuring.
 ## Metrics: the `demo-api` contract
 
 The `demo-api` Flask service (port `8000`, namespace `demo`, image
-`ghcr.io/charanvamsy/demo-api:<tag>`) exposes Prometheus metrics at `GET /metrics`
+`ghcr.io/charanvamsy26/demo-api:<tag>`) exposes Prometheus metrics at `GET /metrics`
 via `prometheus_client`. The **metric and label contract below is shared with the
 kubernetes/helm builder** — recording rules, alerts, SLOs, and dashboards all depend
 on these exact names. Changing them requires changing both sides.

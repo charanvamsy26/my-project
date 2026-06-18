@@ -1,7 +1,7 @@
 # ConstraintTemplate: K8sAllowedRegistries
 # Every container image must start with one of the allowed registry prefixes.
 # my-project pulls only from:
-#   - ghcr.io/charanvamsy/...        (first-party images, built in CI)
+#   - ghcr.io/charanvamsy26/...        (first-party images, built in CI)
 #   - <account_id>.dkr.ecr.us-east-1.amazonaws.com/...  (mirrored / private images)
 #
 # WHY: pinning the registry blocks typosquatting and supply-chain attacks via

@@ -18,7 +18,7 @@ This is a reference/portfolio repository; security fixes are applied to the `mai
 Report privately using one of:
 
 1. **GitHub Security Advisories** — open a private report via the repository's **Security → Report a vulnerability** tab (preferred; keeps disclosure coordinated).
-2. **Email** — contact the maintainer at the address on the GitHub profile of [`charanvamsy`](https://github.com/charanvamsy).
+2. **Email** — contact the maintainer at the address on the GitHub profile of [`charanvamsy26`](https://github.com/charanvamsy26).
 
 Please include:
 - A clear description of the issue and its impact.

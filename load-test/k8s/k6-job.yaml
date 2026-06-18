@@ -1,0 +1,271 @@
+# =============================================================================
+# In-cluster k6 load-test Job for the demo-api reliability demo.
+# -----------------------------------------------------------------------------
+# Runs the k6 scripts (mounted via the ConfigMap below) against the in-cluster
+# demo-api Service. By default it runs the STEADY scenario (expected PASS). To
+# run the BURN scenario (expected FAIL), see the commented `command` override
+# and the BURN env block further down.
+#
+# Apply (loads the scripts AND the Job):
+#   kubectl apply -f load-test/k8s/k6-job.yaml
+#   kubectl -n demo logs -f job/k6-steady
+#
+# Re-run: a Job is immutable once it completes. Delete + re-apply, or use
+# `kubectl create job k6-steady-$(date +%s) --from=... ` style if you prefer.
+# The `make load-burn-cluster` note in README.md shows a templated re-run.
+#
+# COMPLIANCE (Gatekeeper constraints in policies/gatekeeper/constraints):
+#   * Image: docker.io/grafana/k6 is NOT an allowed registry (K8sAllowedRegistries
+#     permits only ghcr.io/charanvamsy/ and the private ECR). We therefore
+#     reference the image through the ECR MIRROR path below. Mirror the pinned
+#     upstream tag once:
+#       UPSTREAM=grafana/k6:0.50.0
+#       ECR=<account_id>.dkr.ecr.us-east-1.amazonaws.com/mirror/grafana/k6:0.50.0
+#       docker pull $UPSTREAM && docker tag $UPSTREAM $ECR && docker push $ECR
+#     Replace <account_id> with the real AWS account number (us-east-1). If your
+#     cluster mirrors into GHCR instead, use ghcr.io/charanvamsy/k6:0.50.0.
+#   * Tag is pinned (0.50.0) — never :latest (K8sDisallowLatestTag: deny).
+#   * cpu+memory requests AND limits set (K8sRequireResources: deny).
+#   * runAsNonRoot + drop ALL caps + readOnlyRootFilesystem + no privesc
+#     (K8sRequireSecurityContext: deny). k6 needs no writable root FS; it reads
+#     scripts from the read-only ConfigMap mount and writes nothing to disk.
+#   * Standard ownership labels set (K8sRequiredLabels matches apps/* workloads,
+#     not batch/Job, but we set them anyway for attribution/consistency).
+#   * Probes: K8sRequireProbes matches Pods but is enforcementAction: dryrun and
+#     explicitly carves out one-off Jobs in its rationale, so this Job (which has
+#     no sensible liveness/readiness surface) does not violate a deny rule.
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k6-scripts
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: k6-load-test
+    app.kubernetes.io/component: load-test
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/managed-by: kubectl
+    project: my-project
+data:
+  # NOTE: keep these in sync with the files under load-test/k6/. They are
+  # inlined here so `kubectl apply -f k6-job.yaml` is self-contained. If you
+  # prefer a single source of truth, generate the ConfigMap from the files:
+  #   kubectl -n demo create configmap k6-scripts \
+  #     --from-file=load-test/k6/steady.js \
+  #     --from-file=load-test/k6/burn.js \
+  #     --from-file=options.js=load-test/k6/lib/options.js \
+  #     --dry-run=client -o yaml | kubectl apply -f -
+  # (When generated that way, the import path in steady.js/burn.js must be
+  #  flattened from './lib/options.js' to './options.js'. The inlined copies
+  #  below already use the flat './options.js' path to match a flat mount.)
+  options.js: |
+    export const BASE_URL = (__ENV.BASE_URL || 'http://demo-api.demo.svc.cluster.local').replace(/\/+$/, '');
+    export const SLO = { P99_LATENCY_MS: 500, MAX_ERROR_RATIO: 0.001 };
+    export function reqParams(name) {
+      return { timeout: '10s', tags: { endpoint: name || 'root' } };
+    }
+    export function hitRoot(http) { return http.get(`${BASE_URL}/`, reqParams('root')); }
+    export function hitHealthz(http) { return http.get(`${BASE_URL}/healthz`, reqParams('healthz')); }
+    export function hitReadyz(http) { return http.get(`${BASE_URL}/readyz`, reqParams('readyz')); }
+    export function isSuccess(res) { return res.status > 0 && res.status < 500; }
+    export const summaryTrendStats = ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'];
+
+  steady.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    import { Rate } from 'k6/metrics';
+    import { BASE_URL, SLO, hitRoot, hitHealthz, isSuccess, summaryTrendStats } from './options.js';
+    const RATE = Number(__ENV.RATE || 20);
+    const DURATION = __ENV.DURATION || '2m';
+    const sloErrors = new Rate('slo_errors');
+    export const options = {
+      scenarios: {
+        steady: {
+          executor: 'constant-arrival-rate', rate: RATE, timeUnit: '1s', duration: DURATION,
+          preAllocatedVUs: Number(__ENV.PREALLOC_VUS || 20), maxVUs: Number(__ENV.MAX_VUS || 50),
+          gracefulStop: '15s',
+        },
+      },
+      thresholds: {
+        'http_req_duration{endpoint:root}': [`p(99)<${SLO.P99_LATENCY_MS}`],
+        slo_errors: [`rate<${SLO.MAX_ERROR_RATIO}`],
+        http_req_failed: ['rate<0.01'],
+      },
+      summaryTrendStats, tags: { scenario: 'steady', service: 'demo-api' },
+    };
+    export function setup() {
+      const live = hitHealthz(http);
+      check(live, { 'setup: /healthz is 200': (r) => r.status === 200 });
+      return { base: BASE_URL };
+    }
+    export default function () {
+      const res = hitRoot(http);
+      sloErrors.add(!isSuccess(res));
+      check(res, {
+        'status is 2xx': (r) => r.status >= 200 && r.status < 300,
+        'has demo-api body': (r) => r.body && String(r.body).includes('demo-api'),
+      });
+      sleep(0.1);
+    }
+
+  burn.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    import { Rate } from 'k6/metrics';
+    import { BASE_URL, SLO, hitRoot, isSuccess, summaryTrendStats } from './options.js';
+    const CHAOS_TOKEN = __ENV.CHAOS_TOKEN || '';
+    const CHAOS_ERROR_RATE = Number(__ENV.CHAOS_ERROR_RATE || 0.25);
+    const CHAOS_LATENCY_MS = Number(__ENV.CHAOS_LATENCY_MS || 800);
+    const PEAK_RATE = Number(__ENV.PEAK_RATE || 150);
+    const sloErrors = new Rate('slo_errors');
+    export const options = {
+      scenarios: {
+        burn: {
+          executor: 'ramping-arrival-rate', startRate: 10, timeUnit: '1s',
+          preAllocatedVUs: Number(__ENV.PREALLOC_VUS || 50), maxVUs: Number(__ENV.MAX_VUS || 300),
+          stages: [
+            { target: Math.round(PEAK_RATE * 0.3), duration: '30s' },
+            { target: PEAK_RATE, duration: '1m' },
+            { target: PEAK_RATE, duration: '1m' },
+            { target: 0, duration: '20s' },
+          ],
+          gracefulStop: '15s',
+        },
+      },
+      // EXPECTED TO FAIL — this is the demo. Do not relax these.
+      thresholds: {
+        'http_req_duration{endpoint:root}': [{ threshold: `p(99)<${SLO.P99_LATENCY_MS}`, abortOnFail: false }],
+        slo_errors: [{ threshold: `rate<${SLO.MAX_ERROR_RATIO}`, abortOnFail: false }],
+        http_req_failed: [{ threshold: 'rate<0.01', abortOnFail: false }],
+      },
+      summaryTrendStats, tags: { scenario: 'burn', service: 'demo-api' },
+    };
+    export function setup() {
+      if (!CHAOS_TOKEN) {
+        console.warn('burn.js: CHAOS_TOKEN unset -> PURE-OVERLOAD mode (no /admin/chaos).');
+        return { chaosEnabled: false, base: BASE_URL };
+      }
+      const res = http.post(`${BASE_URL}/admin/chaos`,
+        JSON.stringify({ error_rate: CHAOS_ERROR_RATE, latency_ms: CHAOS_LATENCY_MS, outage: false }),
+        { headers: { 'Content-Type': 'application/json', 'X-Chaos-Token': CHAOS_TOKEN }, tags: { endpoint: 'admin' } });
+      const ok = check(res, { 'setup: /admin/chaos accepted (200)': (r) => r.status === 200 });
+      if (!ok) {
+        console.warn(`burn.js: /admin/chaos ${res.status}; falling back to PURE-OVERLOAD.`);
+        return { chaosEnabled: false, base: BASE_URL };
+      }
+      return { chaosEnabled: true, base: BASE_URL };
+    }
+    export default function () {
+      const res = hitRoot(http);
+      sloErrors.add(!isSuccess(res));
+      check(res, {
+        'got a response': (r) => r.status !== 0,
+        'is 5xx (chaos/overload)': (r) => r.status >= 500,
+      });
+      sleep(0.05);
+    }
+    export function teardown(data) {
+      if (data && data.chaosEnabled) {
+        http.post(`${BASE_URL}/admin/chaos`,
+          JSON.stringify({ error_rate: 0.0, latency_ms: 0, outage: false }),
+          { headers: { 'Content-Type': 'application/json', 'X-Chaos-Token': CHAOS_TOKEN }, tags: { endpoint: 'admin' } });
+      }
+      console.log('burn.js finished. Threshold FAILURES above are EXPECTED.');
+    }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-steady
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: k6-load-test
+    app.kubernetes.io/component: load-test
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/managed-by: kubectl
+    project: my-project
+spec:
+  # Do not retry: a load run is a single observation. Retrying would double the
+  # offered load and muddy the metrics.
+  backoffLimit: 0
+  # Auto-clean the Job (and its Pod) 1h after it finishes so repeated demo runs
+  # don't pile up. Requires the TTLAfterFinished feature (GA since k8s 1.23).
+  ttlSecondsAfterFinished: 3600
+  # Hard ceiling so a hung run cannot load the service forever.
+  activeDeadlineSeconds: 900
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: k6-load-test
+        app.kubernetes.io/component: load-test
+        app.kubernetes.io/part-of: my-project
+        app.kubernetes.io/managed-by: kubectl
+        project: my-project
+    spec:
+      restartPolicy: Never
+      # No API access needed for a load generator.
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 12000
+        runAsGroup: 12000
+        fsGroup: 12000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: k6
+          # See COMPLIANCE note at top: this MUST resolve to a mirror of
+          # grafana/k6:0.50.0 in an allowed registry (ECR or GHCR). Pinned tag,
+          # never :latest. Replace <account_id> with the AWS account number.
+          image: <account_id>.dkr.ecr.us-east-1.amazonaws.com/mirror/grafana/k6:0.50.0
+          imagePullPolicy: IfNotPresent
+          # STEADY scenario (expected PASS). For the BURN scenario (expected
+          # FAIL), change this to ["run", "/scripts/burn.js"] and add CHAOS_TOKEN
+          # to the env below (with demo-api started with a matching
+          # CHAOS_ADMIN_TOKEN). See README.md.
+          command: ["k6", "run", "/scripts/steady.js"]
+          env:
+            # Service port is 80 (chart service.port) -> container 8000.
+            - name: BASE_URL
+              value: "http://demo-api.demo.svc.cluster.local"
+            # ---- STEADY knobs (safe defaults) ----
+            - name: RATE
+              value: "20"
+            - name: DURATION
+              value: "2m"
+            # ---- BURN knobs (used only when command runs burn.js) ----
+            # Provide CHAOS_TOKEN from a Secret to enable server-side chaos.
+            # - name: CHAOS_TOKEN
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: demo-api-chaos     # holds key CHAOS_ADMIN_TOKEN
+            #       key: CHAOS_ADMIN_TOKEN
+            # - name: CHAOS_ERROR_RATE
+            #   value: "0.25"
+            # - name: CHAOS_LATENCY_MS
+            #   value: "800"
+            # - name: PEAK_RATE
+            #   value: "150"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 12000
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: scripts
+          configMap:
+            name: k6-scripts

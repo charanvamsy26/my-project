@@ -1,0 +1,273 @@
+---
+# Terraform CI: validation + plan for every PR that touches infrastructure code.
+#
+# Why this shape:
+#   * fmt/validate/lint/security run WITHOUT cloud creds (init -backend=false) so
+#     forks and untrusted PRs get fast, safe feedback with no secrets exposed.
+#   * The `plan` job is the only one that assumes an AWS role (via OIDC) and is
+#     gated on the lint/security jobs passing, so we never burn an authenticated
+#     plan on code that already failed cheap static checks.
+#   * A matrix over dev/prod surfaces drift between environments in a single PR.
+#
+# AWS OIDC role (must exist before this workflow can plan):
+#   Role name:  my-project-gha-terraform-plan
+#   Trust:      token.actions.githubusercontent.com (GitHub OIDC provider)
+#   Condition:  aud = sts.amazonaws.com
+#               sub = repo:charanvamsy/my-project:*  (scope tighter per env if desired)
+#   Policy:     read-only-ish plan permissions + S3 state RW + DynamoDB lock RW.
+#   The role ARN is provided to the workflow via the repo variable AWS_PLAN_ROLE_ARN
+#   (Settings -> Secrets and variables -> Actions -> Variables). Documented in
+#   .github/workflows/README.md.
+name: terraform
+
+"on":
+  pull_request:
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform.yml"
+      - ".tflint.hcl"
+      - ".checkov.yaml"
+
+# Least privilege at the top; jobs widen only what they specifically need.
+permissions:
+  contents: read
+
+concurrency:
+  # One run per PR; cancel superseded pushes to save minutes.
+  group: terraform-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TF_VERSION: "1.9.8"
+  AWS_REGION: "us-east-1"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Static analysis — no cloud credentials. Runs per environment root.
+  # ---------------------------------------------------------------------------
+  validate:
+    name: validate (${{ matrix.environment }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [dev, prod]
+    defaults:
+      run:
+        working-directory: terraform/environments/${{ matrix.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Terraform fmt (check, recursive)
+        # Run from repo root so modules + all envs are formatted, not just this env.
+        working-directory: .
+        run: terraform fmt -check -recursive -diff
+
+      - name: Terraform init (no backend)
+        # -backend=false lets us validate without touching S3/DynamoDB or creds.
+        run: terraform init -backend=false -input=false
+
+      - name: Terraform validate
+        run: terraform validate -no-color
+
+  lint:
+    name: tflint (${{ matrix.environment }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [dev, prod]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.53.0
+
+      - name: TFLint init (download plugins)
+        run: tflint --init
+        env:
+          # Avoids GitHub API rate limits when pulling the AWS ruleset plugin.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: TFLint
+        run: tflint --chdir=terraform/environments/${{ matrix.environment }} --config=${{ github.workspace }}/.tflint.hcl --format=compact
+
+  security:
+    name: security-scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write  # required to upload SARIF to code scanning
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # tfsec and checkov are complementary: tfsec is fast/opinionated on AWS,
+      # checkov has a much larger policy set and CIS mappings. We run both.
+      - name: tfsec
+        uses: aquasecurity/tfsec-sarif-action@v0.1.4
+        with:
+          working_directory: terraform
+          sarif_file: tfsec.sarif
+
+      - name: Upload tfsec SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: tfsec.sarif
+          category: tfsec
+
+      - name: Checkov
+        id: checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform
+          config_file: .checkov.yaml
+          output_format: cli,sarif
+          output_file_path: console,checkov.sarif
+          soft_fail: false
+
+      - name: Upload Checkov SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: checkov.sarif
+          category: checkov
+
+  # ---------------------------------------------------------------------------
+  # Authenticated plan — only after the cheap checks pass. Posts plan to the PR.
+  # ---------------------------------------------------------------------------
+  plan:
+    name: plan (${{ matrix.environment }})
+    runs-on: ubuntu-latest
+    needs: [validate, lint, security]
+    # Skip the authenticated plan for PRs from forks: OIDC role assumption from
+    # an untrusted fork would be a credential-exposure risk.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: read
+      id-token: write       # required for AWS OIDC federation
+      pull-requests: write  # required to post the plan comment
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [dev, prod]
+    defaults:
+      run:
+        working-directory: terraform/environments/${{ matrix.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          role-session-name: gha-tf-plan-${{ matrix.environment }}-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - name: Terraform plan
+        id: plan
+        # -detailed-exitcode: 0=no changes, 2=changes, 1=error. We tolerate 2 so
+        # the comment step still runs; the exit code is surfaced in the comment.
+        run: |
+          set +e
+          terraform plan -input=false -no-color -lock=false -out=tfplan \
+            -detailed-exitcode > plan_output.txt 2>&1
+          echo "exitcode=$?" >> "$GITHUB_OUTPUT"
+          set -e
+          cat plan_output.txt
+
+      - name: Render plan summary
+        id: summary
+        if: always()
+        run: |
+          # Strip the noisy "Refreshing state..." lines and cap size so the
+          # comment never exceeds GitHub's 65,536-char limit.
+          PLAN=$(grep -vE '^(.*: Refreshing state\.\.\.|.*: Reading\.\.\.|.*: Read complete)' plan_output.txt \
+            | tail -c 60000)
+          {
+            echo 'plan<<PLAN_EOF'
+            echo "$PLAN"
+            echo 'PLAN_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Post plan as PR comment
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          PLAN: ${{ steps.summary.outputs.plan }}
+          ENVIRONMENT: ${{ matrix.environment }}
+          EXITCODE: ${{ steps.plan.outputs.exitcode }}
+        with:
+          script: |
+            const env = process.env.ENVIRONMENT;
+            const exit = process.env.EXITCODE;
+            const status = exit === '0' ? '✅ No changes'
+                         : exit === '2' ? '📝 Changes detected'
+                         : '❌ Plan failed';
+            // A stable marker lets us update one comment per env instead of
+            // spamming a new comment on every push.
+            const marker = `<!-- tf-plan:${env} -->`;
+            const body = [
+              marker,
+              `### Terraform Plan — \`${env}\` ${status}`,
+              '',
+              '<details><summary>Show plan output</summary>',
+              '',
+              '```hcl',
+              process.env.PLAN || '(no output)',
+              '```',
+              '</details>',
+              '',
+              `_Cluster: \`my-project-${env}\` · Region: \`us-east-1\` · Run: ${context.runId}_`,
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Fail job if plan errored
+        if: steps.plan.outputs.exitcode == '1'
+        run: exit 1

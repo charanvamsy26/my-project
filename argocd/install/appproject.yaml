@@ -1,0 +1,114 @@
+# AppProject "my-project" — the security boundary every Application in this repo belongs to.
+#
+# An AppProject is ArgoCD's tenancy/guardrail primitive. By restricting which Git repos an app
+# may pull from, which clusters/namespaces it may deploy to, and which resource kinds it may
+# create, a malicious or careless pull request CANNOT make ArgoCD deploy arbitrary workloads to
+# arbitrary places. This is defense-in-depth on top of cluster RBAC.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: my-project
+  namespace: argocd
+  # Keep the project from being deleted out from under running apps; ArgoCD will block deletion
+  # while child Applications still reference it.
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    project: my-project
+    managed-by: argocd
+spec:
+  description: >-
+    Production-grade reference platform (my-project). Hosts platform add-ons
+    (observability, policy, ingress) and the demo-api sample workload.
+
+  # --- Source restriction: only our own repo may be a source. -----------------------------
+  # No app in this project can sync from any other Git host/org — eliminates a whole class of
+  # supply-chain attacks via PRs that swap repoURL.
+  sourceRepos:
+    - https://github.com/charanvamsy/my-project.git
+    # Helm repositories used by child apps (pinned charts pull from these registries).
+    - https://prometheus-community.github.io/helm-charts
+    - https://open-policy-agent.github.io/gatekeeper/charts
+    - https://aws.github.io/eks-charts
+
+  # --- Destination restriction: only this cluster, only known namespaces. ------------------
+  # `https://kubernetes.default.svc` is the in-cluster API (ArgoCD is co-located with workloads).
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: argocd            # the root app lives here
+    - server: https://kubernetes.default.svc
+      namespace: demo              # demo-api workload
+    - server: https://kubernetes.default.svc
+      namespace: monitoring        # kube-prometheus-stack
+    - server: https://kubernetes.default.svc
+      namespace: gatekeeper-system # OPA Gatekeeper
+    - server: https://kubernetes.default.svc
+      namespace: kube-system       # aws-load-balancer-controller
+
+  # --- Cluster-scoped resource allow-list. ------------------------------------------------
+  # Add-ons legitimately need cluster-scoped objects (CRDs, ClusterRoles, webhooks, the
+  # namespaces themselves). We allow exactly those kinds rather than a blanket "*".
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+    - group: scheduling.k8s.io
+      kind: PriorityClass
+    - group: storage.k8s.io
+      kind: StorageClass
+    # Gatekeeper's constraint templates create dynamic constraint CRDs cluster-wide.
+    - group: templates.gatekeeper.sh
+      kind: ConstraintTemplate
+    - group: config.gatekeeper.sh
+      kind: Config
+
+  # Namespaced resources: allow everything EXCEPT raw Secrets created directly by an app
+  # (secrets should come from a secrets manager / sealed-secrets, not plain Git). This is a
+  # blacklist so normal Deployments/Services/ConfigMaps/etc. work without enumeration.
+  namespaceResourceBlacklist:
+    - group: ""
+      kind: Secret
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+
+  # --- RBAC: project-scoped roles (bound to OIDC/SSO groups in a real cluster). ------------
+  roles:
+    # Read-only role for the wider engineering org — can see app state, can't mutate.
+    - name: read-only
+      description: View-only access to all my-project applications.
+      policies:
+        - p, proj:my-project:read-only, applications, get, my-project/*, allow
+      groups:
+        - charanvamsy:engineering
+
+    # Platform/SRE role — may sync and (re)deploy, but NOT delete Applications or override
+    # the project guardrails. Deletion stays a deliberate, separately-privileged action.
+    - name: platform-admin
+      description: Sync/override for the platform team; no Application deletion.
+      policies:
+        - p, proj:my-project:platform-admin, applications, get, my-project/*, allow
+        - p, proj:my-project:platform-admin, applications, sync, my-project/*, allow
+        - p, proj:my-project:platform-admin, applications, action/*, my-project/*, allow
+        - p, proj:my-project:platform-admin, applications, override, my-project/*, allow
+        - p, proj:my-project:platform-admin, applications, delete, my-project/*, deny
+      groups:
+        - charanvamsy:platform-sre
+
+  # Only allow syncing to these git revisions/labels for orphaned-resource detection.
+  orphanedResources:
+    # Warn (don't auto-delete) when resources exist in a managed namespace without an owner —
+    # surfaces drift/leftovers without risking accidental deletion.
+    warn: true
+
+  # Allow standard sync windows; deny nothing by default (override per-env if you need freezes).
+  # syncWindows: []   # e.g. add a prod change-freeze window here.

@@ -1,0 +1,253 @@
+# =============================================================================
+# Alerting rules — platform + demo-api workload
+# -----------------------------------------------------------------------------
+# Symptom-oriented alerts. Cause-level / budget-burn alerts for demo-api live in
+# slo-rules.yaml; this file covers fast, obvious failure modes and cluster health.
+#
+# Every alert carries:
+#   severity: critical|warning   -> drives Alertmanager routing
+#   labels.team                  -> drives ownership routing
+#   annotations.summary/description -> human-readable, templated with $labels/$value
+#   annotations.runbook_url      -> on-call jump-off point
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: my-project-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/part-of: my-project
+    project: my-project
+spec:
+  groups:
+    # -------------------------------------------------------------------------
+    # demo-api workload alerts
+    # -------------------------------------------------------------------------
+    - name: demo-api.alerts
+      rules:
+        - alert: DemoApiHighErrorRate
+          # Reuses the recorded error ratio; fires above 5% sustained.
+          expr: job:demo_api_error_ratio:rate5m > 0.05
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+            service: demo-api
+          annotations:
+            summary: "demo-api error rate is high ({{ $value | humanizePercentage }})"
+            description: >-
+              demo-api in namespace {{ $labels.namespace }} is returning 5xx for
+              {{ $value | humanizePercentage }} of requests over the last 5m
+              (threshold 5%). Note: the SLO burn alerts in slo-rules.yaml are the
+              primary signal — this is a coarse backstop.
+            runbook_url: "https://runbooks.example.com/demo-api/high-error-rate"
+
+        - alert: DemoApiHighLatencyP99
+          # p99 latency budget for demo-api is 500ms.
+          expr: job:demo_api_request_duration_seconds:p99 > 0.5
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+            service: demo-api
+          annotations:
+            summary: "demo-api p99 latency is high ({{ $value | humanizeDuration }})"
+            description: >-
+              demo-api p99 request latency is {{ $value | humanizeDuration }} over
+              the last 5m (threshold 500ms) in namespace {{ $labels.namespace }}.
+            runbook_url: "https://runbooks.example.com/demo-api/high-latency"
+
+        - alert: DemoApiNoTraffic
+          # A hello-world service that serves *zero* user requests for 15m almost
+          # always means a broken ingress/route, not genuine idleness.
+          expr: absent(job:demo_api_requests:rate5m) or job:demo_api_requests:rate5m == 0
+          for: 15m
+          labels:
+            severity: warning
+            team: platform
+            service: demo-api
+          annotations:
+            summary: "demo-api is serving no traffic"
+            description: >-
+              demo-api has served no user requests for 15m. Likely an ingress/ALB
+              or Service routing problem rather than real idleness — check the
+              ALB target group health and the ServiceMonitor.
+            runbook_url: "https://runbooks.example.com/demo-api/no-traffic"
+
+        - alert: HPAMaxedOut
+          # demo-api's HPA pinned at max replicas means we've run out of headroom;
+          # latency/errors are likely next unless we raise the ceiling.
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas{namespace="demo", horizontalpodautoscaler=~"demo-api.*"}
+              ==
+            kube_horizontalpodautoscaler_spec_max_replicas{namespace="demo", horizontalpodautoscaler=~"demo-api.*"}
+          for: 15m
+          labels:
+            severity: warning
+            team: platform
+            service: demo-api
+          annotations:
+            summary: "HPA {{ $labels.horizontalpodautoscaler }} is at max replicas"
+            description: >-
+              The HPA {{ $labels.horizontalpodautoscaler }} in namespace
+              {{ $labels.namespace }} has been pinned at its maximum of
+              {{ $value }} replicas for 15m. Capacity headroom is exhausted —
+              consider raising maxReplicas or investigating load.
+            runbook_url: "https://runbooks.example.com/demo-api/hpa-maxed"
+
+    # -------------------------------------------------------------------------
+    # Kubernetes workload health (applies to all namespaces)
+    # -------------------------------------------------------------------------
+    - name: kubernetes.workloads
+      rules:
+        - alert: PodCrashLooping
+          # > 0 restarts in the trailing 5m, sustained, == crashloop.
+          expr: |
+            increase(kube_pod_container_status_restarts_total[5m]) > 0
+            and
+            rate(kube_pod_container_status_restarts_total[15m]) > 0
+          for: 10m
+          labels:
+            severity: critical
+            team: platform
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash looping"
+            description: >-
+              Container {{ $labels.container }} in pod
+              {{ $labels.namespace }}/{{ $labels.pod }} has restarted repeatedly
+              over the last 15m. Check `kubectl logs --previous`.
+            runbook_url: "https://runbooks.example.com/kubernetes/crashloop"
+
+        - alert: PodNotReady
+          expr: |
+            sum by (namespace, pod) (
+              max by (namespace, pod) (
+                kube_pod_status_phase{phase=~"Pending|Unknown"}
+              )
+            ) > 0
+          for: 15m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} not ready"
+            description: >-
+              Pod {{ $labels.namespace }}/{{ $labels.pod }} has been in a non-ready
+              phase for more than 15m.
+            runbook_url: "https://runbooks.example.com/kubernetes/pod-not-ready"
+
+        - alert: DeploymentReplicasMismatch
+          expr: |
+            kube_deployment_spec_replicas{namespace=~"demo|monitoring"}
+              !=
+            kube_deployment_status_replicas_available{namespace=~"demo|monitoring"}
+          for: 15m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "Deployment {{ $labels.namespace }}/{{ $labels.deployment }} under-replicated"
+            description: >-
+              Deployment {{ $labels.namespace }}/{{ $labels.deployment }} has had
+              fewer available replicas than desired for 15m.
+            runbook_url: "https://runbooks.example.com/kubernetes/replica-mismatch"
+
+    # -------------------------------------------------------------------------
+    # Cluster / node health
+    # -------------------------------------------------------------------------
+    - name: kubernetes.cluster
+      rules:
+        - alert: KubeNodeNotReady
+          expr: kube_node_status_condition{condition="Ready", status="true"} == 0
+          for: 10m
+          labels:
+            severity: critical
+            team: platform
+          annotations:
+            summary: "Node {{ $labels.node }} is NotReady"
+            description: >-
+              Node {{ $labels.node }} has been NotReady for more than 10m. Pods on
+              it may be evicted; check the node and the cluster-autoscaler.
+            runbook_url: "https://runbooks.example.com/kubernetes/node-not-ready"
+
+        - alert: KubeNodeMemoryPressure
+          expr: kube_node_status_condition{condition="MemoryPressure", status="true"} == 1
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "Node {{ $labels.node }} under memory pressure"
+            description: "Node {{ $labels.node }} is reporting MemoryPressure; eviction is imminent."
+            runbook_url: "https://runbooks.example.com/kubernetes/memory-pressure"
+
+        - alert: NodeFilesystemAlmostFull
+          expr: |
+            (
+              node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"}
+                /
+              node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}
+            ) * 100 < 10
+          for: 15m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "Filesystem {{ $labels.mountpoint }} on {{ $labels.instance }} < 10% free"
+            description: >-
+              Only {{ $value | printf "%.1f" }}% space remains on
+              {{ $labels.mountpoint }} ({{ $labels.instance }}).
+            runbook_url: "https://runbooks.example.com/node/disk-full"
+
+    # -------------------------------------------------------------------------
+    # Monitoring-of-the-monitoring (meta alerts)
+    # -------------------------------------------------------------------------
+    - name: monitoring.meta
+      rules:
+        - alert: TargetDown
+          # A scrape target Prometheus believes should be up is unreachable.
+          # Inhibits the latency/error alerts that depend on it (see Alertmanager).
+          expr: |
+            100 * (
+              count by (job, namespace, service) (up == 0)
+                /
+              count by (job, namespace, service) (up)
+            ) > 10
+          for: 10m
+          labels:
+            severity: critical
+            team: platform
+          annotations:
+            summary: "{{ $value | printf \"%.0f\" }}% of {{ $labels.job }} targets are down"
+            description: >-
+              More than 10% of scrape targets for job {{ $labels.job }} (namespace
+              {{ $labels.namespace }}) have been unreachable for 10m. Metrics for
+              this job are unreliable.
+            runbook_url: "https://runbooks.example.com/monitoring/target-down"
+
+        - alert: PrometheusRuleEvaluationFailing
+          expr: increase(prometheus_rule_evaluation_failures_total[5m]) > 0
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "Prometheus rule evaluations are failing"
+            description: >-
+              Prometheus {{ $labels.instance }} has failed rule evaluations in the
+              last 5m — recording/alerting rules may be stale. Check rule syntax.
+            runbook_url: "https://runbooks.example.com/monitoring/rule-eval-failing"
+
+        - alert: PrometheusTSDBWriteFailures
+          expr: increase(prometheus_tsdb_wal_corruptions_total[10m]) > 0
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+          annotations:
+            summary: "Prometheus TSDB WAL corruption detected"
+            description: >-
+              Prometheus {{ $labels.instance }} reported WAL corruption. Data
+              integrity and retention may be compromised; check disk health.
+            runbook_url: "https://runbooks.example.com/monitoring/tsdb-corruption"

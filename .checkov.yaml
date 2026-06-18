@@ -1,0 +1,46 @@
+# Checkov configuration for my-project.
+#
+# Checkov scans Terraform, Helm, Kubernetes, Dockerfiles, and secrets for
+# misconfigurations. This file centralises framework selection, directory
+# scoping, and a small, *justified* skip list so results stay signal-rich.
+#
+# Docs: https://www.checkov.io/2.Basics/CLI%20Command%20Reference.html
+
+# Frameworks to evaluate. (Omitting "all" keeps runs fast and predictable.)
+framework:
+  - terraform
+  - helm
+  - kubernetes
+  - dockerfile
+  - github_actions
+  - secrets
+
+# Never scan generated / vendored / state directories.
+skip-path:
+  - .git
+  - .terraform
+  - "**/.terraform/**"
+  - "**/node_modules/**"
+  - "**/charts/**" # vendored Helm sub-charts
+
+# Compact, CI-friendly output by default; workflows override to add SARIF.
+compact: true
+quiet: true
+
+# Treat any failed check as a non-zero exit (PR gating). Scheduled scans pass
+# soft_fail at the workflow level so they only populate the dashboard.
+soft-fail: false
+
+# Download external (registry/git) modules so cross-module checks are accurate.
+download-external-modules: true
+
+# ---------------------------------------------------------------------------
+# Skips — each MUST carry a reason. Keep this list short and audited.
+# ---------------------------------------------------------------------------
+skip-check:
+  # Example accepted risk: the demo ALB is intentionally internet-facing for the
+  # public demo-api endpoint. Remove this skip if the service moves internal.
+  - CKV_AWS_150 # "Ensure that Load Balancer has deletion protection enabled"
+  # CKV2_GHA_1: top-level read-only token. We set least-privilege permissions
+  # per-job instead of globally, which this check does not detect reliably.
+  - CKV2_GHA_1

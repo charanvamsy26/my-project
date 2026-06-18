@@ -1,0 +1,190 @@
+---
+# Helm + Kubernetes manifest CI.
+#
+# Validates that:
+#   1. Charts lint clean (helm lint).
+#   2. Rendered manifests are schema-valid against the target k8s version
+#      (kubeconform — the actively maintained successor to kubeval).
+#   3. Gatekeeper ConstraintTemplates contain valid, compiling Rego
+#      (opa check / conftest).
+#
+# We render with `helm template` rather than installing, so the whole pipeline
+# runs without a live cluster.
+name: helm-ci
+
+"on":
+  push:
+    branches: [main]
+    paths:
+      - "kubernetes/**"
+      - "argocd/**"
+      - "policies/**"
+      - ".github/workflows/helm-ci.yml"
+  pull_request:
+    paths:
+      - "kubernetes/**"
+      - "argocd/**"
+      - "policies/**"
+      - ".github/workflows/helm-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: helm-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Match the EKS control-plane version so schema validation reflects reality.
+  K8S_VERSION: "1.30.0"
+  HELM_VERSION: "v3.16.3"
+
+jobs:
+  helm:
+    name: helm lint, template & validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Install kubeconform
+        run: |
+          KCFM_VERSION="v0.6.7"
+          curl -sSLf \
+            "https://github.com/yannh/kubeconform/releases/download/${KCFM_VERSION}/kubeconform-linux-amd64.tar.gz" \
+            | tar -xz -C /tmp
+          sudo install -m 0755 /tmp/kubeconform /usr/local/bin/kubeconform
+          kubeconform -v
+
+      - name: Helm lint (all charts)
+        # Lint every chart that has a Chart.yaml; --strict turns warnings fatal.
+        run: |
+          shopt -s nullglob
+          found=0
+          for chart in kubernetes/charts/*/Chart.yaml; do
+            dir="$(dirname "$chart")"
+            echo "::group::helm lint ${dir}"
+            helm lint --strict "${dir}"
+            echo "::endgroup::"
+            found=1
+          done
+          if [ "$found" = "0" ]; then
+            echo "No Helm charts found under kubernetes/charts/ — skipping lint."
+          fi
+
+      - name: Helm template + kubeconform
+        run: |
+          shopt -s nullglob
+          for chart in kubernetes/charts/*/Chart.yaml; do
+            dir="$(dirname "$chart")"
+            echo "::group::render + validate ${dir}"
+            helm template release "${dir}" --namespace demo \
+              | kubeconform \
+                  -strict \
+                  -summary \
+                  -kubernetes-version "${K8S_VERSION}" \
+                  -ignore-missing-schemas \
+                  -schema-location default \
+                  -schema-location \
+                    'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+            echo "::endgroup::"
+          done
+
+      - name: Validate raw k8s manifests (if any)
+        # Static manifests under kubernetes/namespaces and argocd/ (e.g. the
+        # ArgoCD app-of-apps) are validated too.
+        run: |
+          manifests=$(find kubernetes/namespaces argocd -type f \( -name '*.yaml' -o -name '*.yml' \) 2>/dev/null)
+          if [ -n "$manifests" ]; then
+            kubeconform \
+              -strict -summary \
+              -kubernetes-version "${K8S_VERSION}" \
+              -ignore-missing-schemas \
+              -schema-location default \
+              -schema-location \
+                'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+              $manifests
+          else
+            echo "No raw k8s manifests found — skipping raw manifest validation."
+          fi
+
+  policy:
+    name: gatekeeper policy compile
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install OPA
+        run: |
+          OPA_VERSION="v0.69.0"
+          curl -sSLf -o /tmp/opa \
+            "https://github.com/open-policy-agent/opa/releases/download/${OPA_VERSION}/opa_linux_amd64_static"
+          sudo install -m 0755 /tmp/opa /usr/local/bin/opa
+          opa version
+
+      - name: Install conftest
+        run: |
+          CONFTEST_VERSION="0.56.0"
+          curl -sSLf \
+            "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" \
+            | tar -xz -C /tmp conftest
+          sudo install -m 0755 /tmp/conftest /usr/local/bin/conftest
+          conftest --version
+
+      - name: Compile Gatekeeper ConstraintTemplate Rego
+        # Gatekeeper ConstraintTemplates embed Rego under spec.targets[].rego.
+        # We extract each block with yq (preinstalled on ubuntu-latest) and run
+        # `opa check` so a syntax/compile error fails CI long before it would
+        # fail `kubectl apply` in-cluster.
+        run: |
+          set -euo pipefail
+          if [ ! -d policies ]; then
+            echo "No policies/ directory — skipping Gatekeeper compile."
+            exit 0
+          fi
+          tmp="$(mktemp -d)"
+          idx=0
+          while IFS= read -r tmpl; do
+            # Walk every YAML doc in the file; emit each target's rego to a file.
+            docs="$(yq eval-all '[.] | length' "$tmpl" 2>/dev/null || echo 0)"
+            for d in $(seq 0 $((docs - 1))); do
+              kind="$(yq eval "select(di == $d) | .kind" "$tmpl")"
+              [ "$kind" = "ConstraintTemplate" ] || continue
+              targets="$(yq eval "select(di == $d) | .spec.targets | length" "$tmpl")"
+              for t in $(seq 0 $((targets - 1))); do
+                rego="$(yq eval "select(di == $d) | .spec.targets[$t].rego // \"\"" "$tmpl")"
+                [ -n "$rego" ] || continue
+                printf '%s\n' "$rego" > "${tmp}/ct-${idx}-${t}.rego"
+                echo "extracted ${tmp}/ct-${idx}-${t}.rego from ${tmpl}"
+              done
+            done
+            idx=$((idx + 1))
+          done < <(grep -rl 'kind:[[:space:]]*ConstraintTemplate' policies || true)
+
+          if compgen -G "${tmp}/*.rego" > /dev/null; then
+            echo "Compiling extracted Rego with opa check..."
+            opa check "${tmp}"
+          else
+            echo "No ConstraintTemplate Rego found to compile."
+          fi
+
+      - name: Conftest policy unit tests (if present)
+        # If the repo ships conftest tests (policies/conftest/test, *_test.rego), run them.
+        run: |
+          if compgen -G "policies/conftest/test/*_test.rego" > /dev/null 2>&1 || [ -d policies/conftest/test ]; then
+            # --policy loads both the rules (policy/) and their unit tests (test/)
+            # so `conftest verify` can compile and run the *_test.rego cases.
+            conftest verify --policy policies/conftest/policy --policy policies/conftest/test
+          else
+            echo "No conftest tests found — skipping."
+          fi

@@ -1,0 +1,22 @@
+# Binds the sre-tools/auto-remediation ServiceAccount to the least-privilege
+# Role in the demo namespace. The RoleBinding lives in `demo` (same namespace as
+# the Role it references); the subject points at the SA in `sre-tools`.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: auto-remediation-restart
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: auto-remediation
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/managed-by: kustomize
+    project: my-project
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: auto-remediation-restart
+subjects:
+  - kind: ServiceAccount
+    name: auto-remediation
+    namespace: sre-tools

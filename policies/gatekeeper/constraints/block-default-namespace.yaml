@@ -1,0 +1,29 @@
+# Constraint: block workloads in the default namespace.
+# enforcementAction: deny  (anything in `default` is almost always a mistake)
+#
+# demo-api deploys to the `demo` namespace, platform to its own namespaces, so this
+# never affects them. We match the workload kinds (not every object) so a stray
+# ConfigMap left in default by a tool doesn't get rejected.
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sBlockDefaultNamespace
+metadata:
+  name: block-default-namespace
+  labels:
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: policy
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+      - apiGroups: ["apps"]
+        kinds: ["Deployment", "StatefulSet", "DaemonSet", "ReplicaSet"]
+      - apiGroups: ["batch"]
+        kinds: ["Job", "CronJob"]
+    # The webhook only fires for the `default` namespace anyway; listing it keeps the
+    # match explicit and self-documenting.
+    namespaces:
+      - default
+  parameters:
+    message: "deploying to the 'default' namespace is forbidden; use an owned namespace (e.g. demo) with quotas + NetworkPolicy"

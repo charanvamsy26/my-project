@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo
+  labels:
+    # Standard project labels (SPEC).
+    app.kubernetes.io/part-of: my-project
+    project: my-project
+    managed-by: argocd
+    environment: dev
+    # Pod Security Admission: enforce the "restricted" profile. demo-api is
+    # built to satisfy it (non-root, RO rootfs, dropped caps, seccomp).
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

@@ -1,0 +1,228 @@
+# =============================================================================
+# SLO rules — demo-api availability: 99.9% over 30 days
+# -----------------------------------------------------------------------------
+# Implements the Google SRE multi-window, multi-burn-rate (MWMB) error-budget
+# alerting method. This file is the hand-auditable PromQL counterpart of the
+# declarative spec in ../../slo/slo.yaml (Sloth). It is intentionally readable so
+# an on-call engineer can verify exactly why they were paged.
+#
+# DEFINITIONS
+#   Valid events  = all user requests to demo-api (probes/scrapes excluded).
+#   Good events   = valid requests that did NOT return 5xx.
+#   SLI           = good / valid                      (success ratio, [0,1])
+#   Error SLI     = 1 - SLI = bad / valid            (the burn signal)
+#   SLO target    = 0.999  (99.9% success)
+#   Error budget  = 1 - 0.999 = 0.001 (0.1%)
+#   Window        = 30 days rolling
+#   Budget time   = 30d * 0.001 ≈ 43m 12s of full-downtime equivalent
+#
+# BURN RATE
+#   burn_rate = (error ratio over window) / (error budget)
+#   A burn rate of 1 exhausts the 30d budget in exactly 30d. A burn rate of 14.4
+#   exhausts it in ~50h (≈2% of budget per hour).
+#
+# Why MWMB? A single short window over-pages on blips; a single long window
+# detects outages too slowly. Requiring BOTH a long-window AND a short-window
+# breach gives fast detection with few false positives, and the short window also
+# resets the alert quickly once the incident is over.
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: demo-api-slo-rules
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/part-of: my-project
+    project: my-project
+    slo: demo-api-availability
+spec:
+  groups:
+    # -------------------------------------------------------------------------
+    # 1) SLI error-ratio recording rules, one series per averaging window.
+    #    Recorded once here so the burn-rate alerts below stay short and the
+    #    same series feed the Grafana SLO panels.
+    #
+    #    sli_error = bad / total, where bad = 5xx user responses.
+    #    The `> 0` guard on the denominator turns 0/0 into "no series" rather than
+    #    NaN, so a quiet service never produces a phantom burn.
+    # -------------------------------------------------------------------------
+    - name: demo-api.slo.sli
+      interval: 30s
+      rules:
+        - record: slo:sli_error:ratio_rate5m
+          labels: { slo: demo-api-availability, service: demo-api }
+          expr: |
+            sum(rate(http_requests_total{service="demo-api", status=~"5..", path!~"/healthz|/readyz|/metrics"}[5m]))
+            /
+            (sum(rate(http_requests_total{service="demo-api", path!~"/healthz|/readyz|/metrics"}[5m])) > 0)
+
+        - record: slo:sli_error:ratio_rate30m
+          labels: { slo: demo-api-availability, service: demo-api }
+          expr: |
+            sum(rate(http_requests_total{service="demo-api", status=~"5..", path!~"/healthz|/readyz|/metrics"}[30m]))
+            /
+            (sum(rate(http_requests_total{service="demo-api", path!~"/healthz|/readyz|/metrics"}[30m])) > 0)
+
+        - record: slo:sli_error:ratio_rate1h
+          labels: { slo: demo-api-availability, service: demo-api }
+          expr: |
+            sum(rate(http_requests_total{service="demo-api", status=~"5..", path!~"/healthz|/readyz|/metrics"}[1h]))
+            /
+            (sum(rate(http_requests_total{service="demo-api", path!~"/healthz|/readyz|/metrics"}[1h])) > 0)
+
+        - record: slo:sli_error:ratio_rate2h
+          labels: { slo: demo-api-availability, service: demo-api }
+          expr: |
+            sum(rate(http_requests_total{service="demo-api", status=~"5..", path!~"/healthz|/readyz|/metrics"}[2h]))
+            /
+            (sum(rate(http_requests_total{service="demo-api", path!~"/healthz|/readyz|/metrics"}[2h])) > 0)
+
+        - record: slo:sli_error:ratio_rate6h
+          labels: { slo: demo-api-availability, service: demo-api }
+          expr: |
+            sum(rate(http_requests_total{service="demo-api", status=~"5..", path!~"/healthz|/readyz|/metrics"}[6h]))
+            /
+            (sum(rate(http_requests_total{service="demo-api", path!~"/healthz|/readyz|/metrics"}[6h])) > 0)
+
+        - record: slo:sli_error:ratio_rate1d
+          labels: { slo: demo-api-availability, service: demo-api }
+          expr: |
+            sum(rate(http_requests_total{service="demo-api", status=~"5..", path!~"/healthz|/readyz|/metrics"}[1d]))
+            /
+            (sum(rate(http_requests_total{service="demo-api", path!~"/healthz|/readyz|/metrics"}[1d])) > 0)
+
+        - record: slo:sli_error:ratio_rate3d
+          labels: { slo: demo-api-availability, service: demo-api }
+          expr: |
+            sum(rate(http_requests_total{service="demo-api", status=~"5..", path!~"/healthz|/readyz|/metrics"}[3d]))
+            /
+            (sum(rate(http_requests_total{service="demo-api", path!~"/healthz|/readyz|/metrics"}[3d])) > 0)
+
+        # 30d error ratio — used directly by the Grafana "budget remaining" panel.
+        - record: slo:sli_error:ratio_rate30d
+          labels: { slo: demo-api-availability, service: demo-api }
+          expr: |
+            sum(rate(http_requests_total{service="demo-api", status=~"5..", path!~"/healthz|/readyz|/metrics"}[30d]))
+            /
+            (sum(rate(http_requests_total{service="demo-api", path!~"/healthz|/readyz|/metrics"}[30d])) > 0)
+
+    # -------------------------------------------------------------------------
+    # 2) Static SLO metadata as recording rules.
+    #    Exposing the objective and budget as series lets dashboards reference
+    #    them by name instead of hard-coding 0.999 in every panel.
+    # -------------------------------------------------------------------------
+    - name: demo-api.slo.meta
+      interval: 5m
+      rules:
+        - record: slo:objective:ratio
+          labels: { slo: demo-api-availability, service: demo-api }
+          expr: vector(0.999)            # 99.9% success target
+
+        - record: slo:error_budget:ratio
+          labels: { slo: demo-api-availability, service: demo-api }
+          expr: vector(0.001)            # 1 - 0.999
+
+        # Fraction of the 30d error budget consumed so far, in [0, 1+].
+        # > 1 means the budget is blown. Grafana shows "remaining" = 1 - this.
+        - record: slo:error_budget:consumed_ratio30d
+          labels: { slo: demo-api-availability, service: demo-api }
+          expr: |
+            slo:sli_error:ratio_rate30d / 0.001
+
+    # -------------------------------------------------------------------------
+    # 3) Multi-window, multi-burn-rate alerts.
+    #
+    #    Each alert requires the long window AND the short window to exceed the
+    #    burn-rate * budget threshold simultaneously:
+    #
+    #        long_window_error_ratio  > burn_rate * 0.001
+    #      AND
+    #        short_window_error_ratio > burn_rate * 0.001
+    #
+    #    | Severity | Burn | Long | Short | Budget if sustained | Page? |
+    #    |----------|------|------|-------|---------------------|-------|
+    #    | critical | 14.4 | 1h   | 5m    | 2%  in 1h           | page  |
+    #    | critical |  6   | 6h   | 30m   | 5%  in 6h           | page  |
+    #    | warning  |  3   | 24h  | 2h    | 10% in 24h          | ticket|
+    #    | warning  |  1   | 72h  | 6h    | 10% in 72h          | ticket|
+    # -------------------------------------------------------------------------
+    - name: demo-api.slo.burnrate
+      rules:
+        # ---- Fast burn: page. 14.4x over 1h/5m (2% of budget in one hour) ----
+        - alert: DemoApiErrorBudgetBurnFast
+          expr: |
+            (
+              slo:sli_error:ratio_rate1h > (14.4 * 0.001)
+              and
+              slo:sli_error:ratio_rate5m > (14.4 * 0.001)
+            )
+            or
+            (
+              slo:sli_error:ratio_rate6h > (6 * 0.001)
+              and
+              slo:sli_error:ratio_rate30m > (6 * 0.001)
+            )
+          labels:
+            severity: critical
+            team: platform
+            service: demo-api
+            slo: demo-api-availability
+            long_window: "1h/6h"
+          annotations:
+            summary: "demo-api is burning its error budget fast (page)"
+            description: >-
+              demo-api availability SLO (99.9%/30d) is burning error budget at a
+              high rate (≥6x). At this pace the 30-day budget is exhausted in well
+              under a week. Current 1h error ratio: {{ with printf "slo:sli_error:ratio_rate1h{service='demo-api'}" }}{{ end }}.
+              Treat as an active incident.
+            runbook_url: "https://runbooks.example.com/demo-api/slo-burn-fast"
+            dashboard_url: "https://grafana.example.com/d/demo-api-overview"
+
+        # ---- Slow burn: ticket. 3x over 24h/2h, 1x over 72h/6h ----
+        - alert: DemoApiErrorBudgetBurnSlow
+          expr: |
+            (
+              slo:sli_error:ratio_rate1d > (3 * 0.001)
+              and
+              slo:sli_error:ratio_rate2h > (3 * 0.001)
+            )
+            or
+            (
+              slo:sli_error:ratio_rate3d > (1 * 0.001)
+              and
+              slo:sli_error:ratio_rate6h > (1 * 0.001)
+            )
+          labels:
+            severity: warning
+            team: platform
+            service: demo-api
+            slo: demo-api-availability
+            long_window: "24h/72h"
+          annotations:
+            summary: "demo-api is slowly burning its error budget (ticket)"
+            description: >-
+              demo-api availability SLO (99.9%/30d) is burning error budget at a
+              low-but-sustained rate (1x–3x). No immediate outage, but the budget
+              will be depleted before the window resets if this continues. File a
+              ticket and investigate within business hours.
+            runbook_url: "https://runbooks.example.com/demo-api/slo-burn-slow"
+            dashboard_url: "https://grafana.example.com/d/demo-api-overview"
+
+        # ---- Budget exhausted: informational, freezes risky changes. ----
+        - alert: DemoApiErrorBudgetExhausted
+          expr: slo:error_budget:consumed_ratio30d >= 1
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+            service: demo-api
+            slo: demo-api-availability
+          annotations:
+            summary: "demo-api 30-day error budget is exhausted"
+            description: >-
+              demo-api has consumed 100% of its 30-day error budget
+              ({{ $value | humanizePercentage }} of budget used). Per the error-budget
+              policy, freeze non-critical releases and prioritise reliability work
+              until the rolling window recovers.
+            runbook_url: "https://runbooks.example.com/demo-api/budget-exhausted"

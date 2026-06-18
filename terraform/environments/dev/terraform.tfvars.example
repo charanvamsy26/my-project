@@ -1,0 +1,41 @@
+###############################################################################
+# dev environment — example variables
+#
+# Copy to terraform.tfvars and adjust. Most values have sensible defaults in
+# variables.tf, so this file mainly documents what you *might* override.
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# REMEMBER: also replace <account_id> in backend.tf with your real account id.
+###############################################################################
+
+aws_region  = "us-east-1"
+project     = "my-project"
+environment = "dev"
+
+# --- Networking ---
+vpc_cidr             = "10.0.0.0/16"
+public_subnet_cidrs  = ["10.0.0.0/20", "10.0.16.0/20", "10.0.32.0/20"]
+private_subnet_cidrs = ["10.0.64.0/20", "10.0.80.0/20", "10.0.96.0/20"]
+
+# --- EKS ---
+kubernetes_version = "1.30"
+
+# SECURITY: lock the API endpoint to your office/VPN ranges instead of the world.
+# endpoint_public_access_cidrs = ["203.0.113.0/24"]
+endpoint_public_access_cidrs = ["0.0.0.0/0"]
+
+# dev nodes: small + cheap
+node_instance_types = ["t3.large"]
+node_desired_size   = 2
+node_min_size       = 2
+node_max_size       = 4
+
+# --- RDS (Aurora PostgreSQL) ---
+rds_instance_class = "db.t4g.medium"
+rds_instance_count = 1          # single writer for dev
+rds_database_name  = "demo"
+
+# --- Add-on chart versions (pin deliberately) ---
+aws_load_balancer_controller_chart_version = "1.8.1"
+metrics_server_chart_version               = "3.12.1"

@@ -1,0 +1,35 @@
+# Constraint: require ownership/provenance labels on workloads.
+# enforcementAction: deny  (labels are cheap to add; non-negotiable for ownership)
+#
+# Requires the standard Kubernetes recommended labels so every Pod-producing object
+# is attributable. demo-api sets all of these via its Helm chart (verified).
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequiredLabels
+metadata:
+  name: require-ownership-labels
+  labels:
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: policy
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: ["apps"]
+        kinds: ["Deployment", "StatefulSet", "DaemonSet"]
+    # System + platform namespaces run upstream charts we don't control.
+    excludedNamespaces:
+      - kube-system
+      - gatekeeper-system
+      - monitoring
+      - kube-node-lease
+      - kube-public
+  parameters:
+    message: "workloads must carry standard ownership labels (app.kubernetes.io/name, /part-of, and a non-default app.kubernetes.io/managed-by)"
+    labels:
+      - key: "app.kubernetes.io/name"
+        allowedRegex: "^.+$"
+      - key: "app.kubernetes.io/part-of"
+        allowedRegex: "^.+$"
+      - key: "app.kubernetes.io/managed-by"
+        # Helm or Argo CD — discourage hand-rolled/ad-hoc objects.
+        allowedRegex: "^(Helm|Argo CD|argocd|kustomize)$"

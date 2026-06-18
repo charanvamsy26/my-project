@@ -1,0 +1,16 @@
+# Patterns to ignore when packaging the chart (helm package).
+# Mirrors .gitignore but scoped to chart hygiene.
+.DS_Store
+.git/
+.gitignore
+.idea/
+.vscode/
+*.tmproj
+*.bak
+*.swp
+*.orig
+*~
+# CI / test scaffolding
+ci/
+tests/
+*.tgz

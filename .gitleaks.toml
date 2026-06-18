@@ -1,0 +1,45 @@
+# Gitleaks configuration for my-project.
+#
+# We extend the upstream default ruleset (covers AWS keys, GitHub PATs, private
+# keys, JWTs, generic high-entropy strings, etc.) and add an allowlist for known
+# placeholders so documentation and examples don't trip the scanner.
+#
+# Run locally:  gitleaks detect --config .gitleaks.toml --redact
+# Pre-commit:   see .pre-commit-config.yaml (gitleaks hook)
+
+title = "my-project gitleaks config"
+
+# Inherit all upstream rules; we only add allowlisting below.
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# Global allowlist: placeholders and example values used throughout the repo.
+# ---------------------------------------------------------------------------
+[allowlist]
+description = "Documented placeholders and non-secret example values"
+
+# Files/paths that legitimately contain secret-shaped placeholders.
+paths = [
+  '''(.*?)\.md$''',                 # docs / READMEs use <PLACEHOLDER> tokens
+  '''(.*?)example(.*?)''',          # *.example / examples/ fixtures
+  '''(.*?)\.tfvars\.example$''',
+  '''(.*?)/testdata/(.*?)''',
+]
+
+# Regexes for values that look secret-ish but are deliberate placeholders.
+regexes = [
+  '''<account[_-]?id>''',
+  '''<ACCOUNT_ID>''',
+  '''123456789012''',               # canonical AWS example account id
+  '''AKIAIOSFODNN7EXAMPLE''',       # AWS docs example access key
+  '''wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY''', # AWS docs example secret
+  '''arn:aws:iam::<[^>]+>:role/''', # ARN templates with <...> placeholders
+  '''EXAMPLE''',
+  '''changeme''',
+  '''demo-api\.example\.com''',
+]
+
+# Specific commit SHAs to ignore can be added here if a false positive is ever
+# baselined; we keep it empty to require active triage instead.
+commits = []

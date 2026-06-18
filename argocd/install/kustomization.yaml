@@ -1,0 +1,31 @@
+# Installs the ArgoCD control plane by overlaying the *pinned* upstream "stable" install
+# manifests with our namespace. We reference the upstream release by tag (NOT HEAD) so the
+# control-plane version is reproducible and reviewable — bumping ArgoCD is a one-line PR here.
+#
+#   kubectl apply -k argocd/install/
+#
+# Why kustomize remote base instead of vendoring the manifests:
+#   - the upstream install.yaml is ~25k lines of CRDs + RBAC + Deployments; vendoring it
+#     bloats the repo and makes upgrades a merge nightmare.
+#   - the remote ref is version-pinned, so it is still fully reproducible.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd
+
+resources:
+  # Our namespace first so the remote base lands inside it.
+  - namespace.yaml
+  # Pinned upstream stable install (HA-capable, includes CRDs). Bump the ?ref= tag to upgrade.
+  - https://raw.githubusercontent.com/argoproj/argo-cd/v2.13.2/manifests/install.yaml
+
+# Stamp every control-plane object with our standard labels (mirrors Terraform tags).
+labels:
+  - includeSelectors: false
+    pairs:
+      project: my-project
+      managed-by: argocd
+
+# NOTE: For production you would typically split this into a base + per-env overlay and enable
+# the HA bundle (`manifests/ha/install.yaml`) plus an Ingress for argocd-server behind the ALB.
+# See ./README.md for the production hardening checklist.

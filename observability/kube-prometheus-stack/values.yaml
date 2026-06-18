@@ -1,0 +1,263 @@
+# =============================================================================
+# kube-prometheus-stack — Helm values for my-project
+# -----------------------------------------------------------------------------
+# Chart : prometheus-community/kube-prometheus-stack
+# Pinned: see Chart version in the ArgoCD Application (GitOps builder owns it).
+# Target: EKS my-project-{dev,prod} (k8s 1.30), namespace `monitoring`, AWS us-east-1.
+#
+# Release name MUST be `kube-prometheus-stack`. Prometheus selects ServiceMonitors
+# carrying `release: kube-prometheus-stack` (see prometheus.prometheusSpec below),
+# and demo-api's chart stamps that exact label — this is the discovery contract.
+#
+# Storage uses the EBS gp3 CSI StorageClass `gp3` (provisioned by the k8s/Terraform
+# builder, encrypted by default). Adjust sizes per env in ArgoCD parameter overrides.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Global
+# -----------------------------------------------------------------------------
+fullnameOverride: kube-prometheus-stack
+
+commonLabels:
+  # Stamped on every object so cost/ownership tooling can attribute the stack.
+  app.kubernetes.io/part-of: my-project
+  project: my-project
+
+# Pin component image tags via the chart's defaults; we never override to :latest.
+# (Image tags are managed by the pinned chart version, not hand-edited here.)
+
+# -----------------------------------------------------------------------------
+# Prometheus
+# -----------------------------------------------------------------------------
+prometheus:
+  prometheusSpec:
+    # --- Data retention --------------------------------------------------------
+    # 30d on-disk matches our 30-day SLO window so error-budget math never reads
+    # past the edge of available data. retentionSize is a hard cap that protects
+    # the PVC from filling even if cardinality spikes.
+    retention: 30d
+    retentionSize: 45GB
+
+    # --- Discovery contract ----------------------------------------------------
+    # Only adopt ServiceMonitors / PodMonitors / PrometheusRules that explicitly
+    # opt in with `release: kube-prometheus-stack`. This is least-privilege
+    # discovery: a workload is scraped only when it asks to be, and a stray
+    # ServiceMonitor in another namespace can't silently add scrape load.
+    serviceMonitorSelector:
+      matchLabels:
+        release: kube-prometheus-stack
+    serviceMonitorNamespaceSelector: {}   # search all namespaces (e.g. `demo`)
+
+    podMonitorSelector:
+      matchLabels:
+        release: kube-prometheus-stack
+    podMonitorNamespaceSelector: {}
+
+    ruleSelector:
+      matchLabels:
+        release: kube-prometheus-stack
+    ruleNamespaceSelector: {}
+
+    probeSelector:
+      matchLabels:
+        release: kube-prometheus-stack
+    probeNamespaceSelector: {}
+
+    # Do NOT ignore selectors. Setting these false enforces the label contract;
+    # `true` would scrape everything and break the least-privilege model.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+
+    # --- Scrape behaviour ------------------------------------------------------
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+    scrapeTimeout: 10s
+
+    # Tag every sample with its origin cluster/env so dev and prod can share a
+    # remote store or a single Grafana without series colliding.
+    externalLabels:
+      cluster: my-project          # overridden per-env by ArgoCD (my-project-dev/prod)
+      environment: dev             # overridden per-env by ArgoCD
+
+    # --- Persistent storage ----------------------------------------------------
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3    # encrypted EBS gp3 CSI class from the platform
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+
+    # --- Resources -------------------------------------------------------------
+    # Requests sized for steady-state; limits give headroom for WAL replay and
+    # query bursts without letting a runaway query OOM the node.
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        cpu: "2"
+        memory: 6Gi
+
+    # --- Scheduling / HA -------------------------------------------------------
+    replicas: 1                    # prod overrides to 2 via ArgoCD for HA
+    # Spread replicas across AZs (us-east-1a/b/c) when replicas > 1.
+    podAntiAffinity: soft
+    podAntiAffinityTopologyKey: topology.kubernetes.io/zone
+
+    # Run on the dedicated/monitoring node group if one exists; tolerate its taint.
+    # (Left empty here; per-env node selection is an ArgoCD override.)
+    nodeSelector: {}
+    tolerations: []
+
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 2000
+
+# -----------------------------------------------------------------------------
+# Alertmanager
+# -----------------------------------------------------------------------------
+alertmanager:
+  alertmanagerSpec:
+    replicas: 1                    # prod overrides to 3 (gossip-clustered) via ArgoCD
+    retention: 120h
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 2000
+
+  # The routing tree + receivers + inhibition rules are authored in
+  # alertmanager/alertmanager.yaml and injected from a Secret (so the Slack webhook
+  # never lands in Git). We point the chart at that external Secret rather than
+  # inlining config here.
+  #
+  #   kubectl create secret generic alertmanager-kube-prometheus-stack-alertmanager \
+  #     --from-file=alertmanager.yaml=alertmanager/alertmanager.yaml -n monitoring
+  #
+  # In dev/prod the Secret is rendered by External Secrets from AWS Secrets Manager.
+  alertmanagerSpec_note: "config provided via external Secret; see alertmanager/README.md"
+
+# -----------------------------------------------------------------------------
+# Grafana
+# -----------------------------------------------------------------------------
+grafana:
+  enabled: true
+
+  # Admin credentials come from a pre-created Secret, never plaintext in values.
+  # (External Secrets syncs it from AWS Secrets Manager in dev/prod.)
+  admin:
+    existingSecret: grafana-admin-credentials
+    userKey: admin-user
+    passwordKey: admin-password
+
+  # Persist Grafana state (annotations, user prefs) so a pod reschedule across AZs
+  # doesn't lose hand-made annotations on the dashboards.
+  persistence:
+    enabled: true
+    type: pvc
+    storageClassName: gp3
+    accessModes: ["ReadWriteOnce"]
+    size: 10Gi
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  # --- Dashboard sidecar -----------------------------------------------------
+  # The sidecar watches the whole cluster for ConfigMaps labelled
+  # `grafana_dashboard: "1"` and imports them into Grafana. This is what lets us
+  # ship dashboards as Git-managed ConfigMaps (grafana/dashboards/) instead of
+  # clicking them in. Folder annotation keeps my-project dashboards grouped.
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      folderAnnotation: grafana_folder
+      provider:
+        foldersFromFilesStructure: true
+      annotations:
+        grafana_folder: my-project
+    datasources:
+      enabled: true
+      label: grafana_datasource
+      labelValue: "1"
+
+  # Prometheus is auto-provisioned as the default datasource by the chart; this
+  # block only sets viewer defaults.
+  defaultDashboardsTimezone: utc
+
+  grafana.ini:
+    server:
+      # Served behind the ALB ingress at grafana.example.com (placeholder).
+      root_url: "https://grafana.example.com"
+    security:
+      # Defence-in-depth: refuse to embed in iframes, and force the cookie flags.
+      cookie_secure: true
+      disable_gravatar: true
+    users:
+      viewers_can_edit: false
+    auth.anonymous:
+      enabled: false
+
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 472
+    fsGroup: 472
+
+# -----------------------------------------------------------------------------
+# Cluster add-on exporters (defaults are good; pinned by chart version)
+# -----------------------------------------------------------------------------
+nodeExporter:
+  enabled: true
+kube-state-metrics:
+  enabled: true
+
+# Control-plane scrape targets: on EKS the control plane is AWS-managed and these
+# endpoints are not reachable, so disable them to avoid permanent `TargetDown`.
+kubeApiServer:
+  enabled: true       # /metrics on the API server IS reachable on EKS
+kubeControllerManager:
+  enabled: false      # managed by EKS — not scrapeable
+kubeScheduler:
+  enabled: false      # managed by EKS — not scrapeable
+kubeEtcd:
+  enabled: false      # managed by EKS — not scrapeable
+kubeProxy:
+  enabled: true
+
+# We author our own opinionated rules in prometheus/rules/. Keep the upstream
+# Kubernetes alert/recording rules too — they cover kubelet/node/apiserver health
+# we don't want to re-implement.
+defaultRules:
+  create: true
+  rules:
+    # Disable rules for the control-plane components we can't scrape on EKS, so we
+    # don't ship alerts that can never have data.
+    etcd: false
+    kubeControllerManager: false
+    kubeScheduler: false

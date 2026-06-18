@@ -1,0 +1,48 @@
+# Dev overlay for demo-api (EKS cluster: my-project-dev).
+# Keep it cheap and forgiving: fewer replicas, lower limits, verbose logs.
+# Usage:
+#   helm upgrade --install demo-api ./charts/demo-api -n demo \
+#     -f charts/demo-api/values.yaml -f charts/demo-api/values-dev.yaml
+
+environment: dev
+
+replicaCount: 1
+
+image:
+  # Pin to a real tag in CI; this is the dev default.
+  tag: "0.1.0"
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
+
+autoscaling:
+  enabled: false # not worth it for a single-replica dev service
+
+# A single replica can't satisfy a PDB during node drains; disable to keep
+# dev nodes freely drainable.
+podDisruptionBudget:
+  enabled: false
+
+ingress:
+  host: demo-api.dev.example.com
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    alb.ingress.kubernetes.io/tags: Project=my-project,ManagedBy=terraform,Environment=dev
+    alb.ingress.kubernetes.io/certificate-arn: "<DEV_ACM_CERTIFICATE_ARN>"
+
+config:
+  APP_NAME: demo-api
+  LOG_LEVEL: DEBUG # noisier logs in dev
+  DB_CONNECT_TIMEOUT: "2"
+
+serviceMonitor:
+  enabled: true
+  interval: 30s

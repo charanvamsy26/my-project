@@ -1,0 +1,28 @@
+# Constraint: enforce a hardened security context (restricted-PSS baseline).
+# enforcementAction: deny  (root + default caps is the top container-escape risk)
+#
+# demo-api's Helm chart sets pod securityContext.runAsNonRoot: true and container
+# securityContext { allowPrivilegeEscalation: false, capabilities.drop: [ALL] },
+# so it complies. We exclude monitoring (node-exporter legitimately needs host
+# access / extra caps) and system namespaces.
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequireSecurityContext
+metadata:
+  name: require-hardened-security-context
+  labels:
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: policy
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    excludedNamespaces:
+      - kube-system
+      - gatekeeper-system
+      - monitoring          # node-exporter / some exporters need host caps
+      - kube-node-lease
+      - kube-public
+  parameters:
+    exemptImages: []

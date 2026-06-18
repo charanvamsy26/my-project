@@ -1,0 +1,77 @@
+# ConstraintTemplate: K8sRequiredLabels
+# Requires that matched objects carry a set of labels, each optionally matching a
+# regex. Used to enforce ownership/provenance labels (e.g. app.kubernetes.io/*).
+#
+# WHY: consistent labels make cost allocation, ownership routing (who gets paged),
+# and selector-based policy/network rules possible. Unlabeled objects are orphans.
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8srequiredlabels
+  labels:
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: policy
+  annotations:
+    description: >-
+      Requires the listed labels (with optional value regex) to be present on
+      matched resources.
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sRequiredLabels
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            message:
+              type: string
+            labels:
+              type: array
+              description: Labels that must be present, with an optional value regex.
+              items:
+                type: object
+                properties:
+                  key:
+                    type: string
+                  allowedRegex:
+                    type: string
+                    description: >-
+                      If set, the label's value must fully match this RE2 regex.
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8srequiredlabels
+
+        import future.keywords.contains
+        import future.keywords.if
+        import future.keywords.in
+
+        # Helper: the labels actually present on the reviewed object. Default to an
+        # empty object so a label-less resource still triggers the "missing" rule
+        # instead of the whole policy evaluating to undefined.
+        object_labels := object.get(input.review.object.metadata, "labels", {})
+
+        # Violation when a required label key is missing entirely.
+        violation contains {"msg": msg} if {
+            some required in input.parameters.labels
+            not object_labels[required.key]
+            msg := message(sprintf("missing required label <%v>", [required.key]))
+        }
+
+        # Violation when a present label's value fails the optional regex.
+        violation contains {"msg": msg} if {
+            some required in input.parameters.labels
+            value := object_labels[required.key]
+            required.allowedRegex != ""
+            not regex.match(required.allowedRegex, value)
+            msg := message(sprintf(
+                "label <%v> value <%v> does not match required pattern <%v>",
+                [required.key, value, required.allowedRegex],
+            ))
+        }
+
+        # Prefer the operator-supplied message; otherwise use the computed reason.
+        message(reason) := input.parameters.message if {
+            input.parameters.message != ""
+        } else := reason

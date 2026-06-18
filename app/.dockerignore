@@ -1,0 +1,36 @@
+# Keep the build context small and avoid leaking local/dev artifacts into the
+# image layers. Everything not needed at runtime is excluded.
+
+# Version control / CI
+.git
+.gitignore
+.github
+
+# Python caches & virtualenvs
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.python-version
+
+# Test & tooling artifacts
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+requirements-dev.txt
+
+# Docs & local files (README is fine to keep out of the image)
+README.md
+*.md
+Dockerfile
+.dockerignore
+
+# Editor / OS noise
+.idea/
+.vscode/
+.DS_Store

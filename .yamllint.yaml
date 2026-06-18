@@ -1,0 +1,52 @@
+# yamllint configuration for my-project.
+#
+# Tuned for Kubernetes/Helm/GitHub Actions YAML, which legitimately uses long
+# lines and `on:` keys. We extend the "default" preset and relax a few rules.
+#
+# Run locally:  yamllint .
+# Pre-commit:   see .pre-commit-config.yaml (yamllint hook)
+
+extends: default
+
+# Don't lint vendored, generated, or templated content.
+ignore: |
+  .git/
+  **/.terraform/
+  **/charts/
+  **/templates/
+  *.tpl
+
+rules:
+  # Helm/k8s manifests routinely exceed 80 cols; cap generously, warn don't fail.
+  line-length:
+    max: 160
+    level: warning
+    allow-non-breakable-words: true
+    allow-non-breakable-inline-mappings: true
+
+  # GitHub Actions uses `on:` which yamllint flags as a truthy value; we already
+  # quote it ("on":) in workflows, but allow common k8s truthy tokens too.
+  truthy:
+    allowed-values: ["true", "false", "on", "off"]
+    check-keys: false
+
+  # Comments: require a space after `#`, but allow shebang-style and don't be
+  # pedantic about column alignment.
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: disable
+
+  # Document start markers (---) are encouraged but not mandatory everywhere.
+  document-start:
+    present: false
+
+  # Allow empty values (common in k8s for explicit nulls).
+  empty-values:
+    forbid-in-block-mappings: false
+    forbid-in-flow-mappings: false
+
+  # Indentation: 2 spaces, sequences indented under their key.
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false

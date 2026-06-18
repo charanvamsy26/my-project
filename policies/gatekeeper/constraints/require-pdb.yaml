@@ -1,0 +1,37 @@
+# Constraint: require a PodDisruptionBudget for multi-replica Deployments. OPTIONAL.
+# enforcementAction: dryrun  (cross-object cache race + commonly-missing -> never deny by default)
+#
+# WHY dryrun (and why it stays dryrun longer than the others):
+#   1. Cross-object: it reads cached PodDisruptionBudgets. A Deployment + its PDB
+#      applied in the same ArgoCD sync can race the cache, causing false positives on
+#      admission. Audit (which sees the settled state) is the reliable signal here.
+#   2. PDBs are frequently missing on otherwise-fine workloads; denying would block
+#      legitimate single-team deploys without warning.
+#
+# demo-api: if its chart ships a PDB (maxUnavailable: 1) selecting app.kubernetes.io/name=demo-api,
+# it complies. If it runs a single replica it is below minReplicas (2) and is not
+# required to have one. Either way demo-api is not blocked.
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequirePDB
+metadata:
+  name: require-pdb-for-deployments
+  labels:
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: policy
+  annotations:
+    policy.my-project.io/promotion: "remains dryrun; promote per-namespace only after PDB coverage is verified via audit"
+spec:
+  enforcementAction: dryrun
+  match:
+    kinds:
+      - apiGroups: ["apps"]
+        kinds: ["Deployment"]
+    excludedNamespaces:
+      - kube-system
+      - gatekeeper-system
+      - monitoring
+      - kube-node-lease
+      - kube-public
+  parameters:
+    # Single-replica Deployments can't be highly available; don't require a PDB.
+    minReplicas: 2

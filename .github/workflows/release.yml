@@ -1,0 +1,63 @@
+---
+# Tag-driven release: when a semver tag (vX.Y.Z) is pushed, generate release
+# notes from the commit history and publish a GitHub Release.
+#
+# This intentionally does NOT build/push images — that is owned by app-ci on the
+# main branch. Releases here are about human-readable changelogs and a stable,
+# referenceable artifact (the Release) tied to an immutable git tag.
+name: release
+
+"on":
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"      # v1.2.3
+      - "v[0-9]+.[0-9]+.[0-9]+-*"    # v1.2.3-rc.1 (pre-release)
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false  # never cancel an in-flight release
+
+jobs:
+  release:
+    name: publish github release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # required to create the GitHub Release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history for changelog generation
+
+      - name: Determine pre-release
+        id: semver
+        # Tags containing a hyphen (e.g. -rc.1) are SemVer pre-releases.
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          if [[ "$tag" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.semver.outputs.tag }}
+          name: ${{ steps.semver.outputs.tag }}
+          # Auto-generate notes from merged PRs / commits since the last tag.
+          generate_release_notes: true
+          prerelease: ${{ steps.semver.outputs.prerelease }}
+          body: |
+            ## my-project ${{ steps.semver.outputs.tag }}
+
+            Container image (published by `app-ci` on main):
+            `ghcr.io/charanvamsy/demo-api:${{ steps.semver.outputs.tag }}`
+
+            See the auto-generated notes below for the full changelog.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

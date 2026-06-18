@@ -1,0 +1,62 @@
+# =============================================================================
+# HTTPChaos — return HTTP 500 for requests to demo-api "/" (availability burn)
+# -----------------------------------------------------------------------------
+# What it does:
+#   Chaos Mesh's chaos-daemon transparently proxies inbound HTTP on the target
+#   pods' container port (8000) and replaces responses to GET "/" with a 500 for
+#   100% of matching requests, for 60s. Those 5xx responses burn the availability
+#   error budget (99.9% / 30d). On the dashboards/alerts you should see the 5xx
+#   ratio spike and DemoApiHighErrorRate -> DemoApiErrorBudgetBurnFast fire, then
+#   recover when the experiment ends.
+#
+# How this differs from mechanism B (app-level /admin/chaos):
+#   - HTTPChaos here forges the 500 at the network/proxy layer OUTSIDE the app, so
+#     it can fail paths the app itself wouldn't (and works without the chaos
+#     endpoint enabled). NOTE: because the fault is injected by the proxy, these
+#     500s are NOT counted by the app's own http_requests_total instrumentation —
+#     they show up in upstream/ingress/ALB and client-side error metrics. If you
+#     want the burn to register in the app's RED metrics + SLO recording rules,
+#     use mechanism B (../scripts) which routes 500s through the app's own
+#     after_request path.
+#
+# Scope / safety:
+#   - namespace: demo                         (NOT prod — see ../README.md)
+#   - selector:  app.kubernetes.io/name=demo-api
+#   - mode: all
+#   - target: Response, port 8000, method GET, path "/"   (matches app.py route)
+#   - duration: 60s                           (auto-reverts; delete to stop early)
+#
+# Run:
+#   kubectl -n demo apply -f http-fault.yaml
+#   # curl the service "/" repeatedly and watch 500s + error-budget burn
+#   kubectl -n demo delete -f http-fault.yaml   # removes the fault
+# =============================================================================
+apiVersion: chaos-mesh.org/v1alpha1
+kind: HTTPChaos
+metadata:
+  name: demo-api-http-fault
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: demo-api
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: chaos-experiment
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  mode: all # affect every matching pod
+  selector:
+    namespaces:
+      - demo
+    labelSelectors:
+      # Must match the demo-api Helm chart's selectorLabels exactly.
+      app.kubernetes.io/name: demo-api
+  # Intercept responses (not requests) on the app's container port.
+  target: Response
+  port: 8000 # demo-api container port (service.targetPort / app PORT)
+  method: GET
+  path: "/" # the app's chaos-enabled root route (route template "/")
+  # Replace the response with a 500 for 100% of matching requests.
+  abort: false
+  replace:
+    code: 500
+  # Short window so the fault auto-recovers; delete the object to stop early.
+  duration: "60s"

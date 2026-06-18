@@ -1,0 +1,78 @@
+---
+# pre-commit hooks for my-project.
+#
+# Catches formatting/lint/security issues *before* they reach CI, giving a tight
+# local feedback loop. Mirrors the checks enforced in .github/workflows/.
+#
+# Setup:
+#   pipx install pre-commit          # or: pip install pre-commit
+#   pre-commit install               # install the git hook
+#   pre-commit run --all-files       # run everything once
+#
+# Hook versions are pinned; bump them via `pre-commit autoupdate` (Dependabot
+# does not manage pre-commit, so this is the manual escape hatch).
+
+# Keep secret scanning fast on commit; the security workflow does the deep pass.
+default_install_hook_types: [pre-commit]
+fail_fast: false
+
+repos:
+  # --- Generic hygiene -----------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        # Preserve Markdown hard line breaks (two trailing spaces).
+        args: [--markdown-linebreak-ext=md]
+      - id: check-merge-conflict
+      - id: check-yaml
+        # Helm templates aren't valid standalone YAML; let yamllint/helm handle.
+        exclude: ^helm/.*/templates/.*$
+        args: [--allow-multiple-documents]
+      - id: check-json
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  # --- Terraform -----------------------------------------------------------
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.96.2
+    hooks:
+      - id: terraform_fmt
+      - id: terraform_validate
+        # validate without a backend so it runs offline / without creds.
+        args:
+          - --tf-init-args=-backend=false
+      - id: terraform_tflint
+        args:
+          - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
+      - id: terraform_tfsec
+        # tfsec auto-discovers inline `#tfsec:ignore` annotations; no external
+        # config file is required. Run only on changed Terraform dirs.
+        args:
+          - --args=--concise-output
+
+  # --- YAML ----------------------------------------------------------------
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: [-c, .yamllint.yaml]
+
+  # --- Secrets -------------------------------------------------------------
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+        # Uses .gitleaks.toml automatically when present at repo root.
+
+  # --- Python (demo-api) ---------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format

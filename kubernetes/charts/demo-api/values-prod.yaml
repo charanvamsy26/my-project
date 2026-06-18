@@ -1,0 +1,72 @@
+# Prod overlay for demo-api (EKS cluster: my-project-prod).
+# Hardened for availability: HA replicas, autoscaling, strict PDB, tighter
+# resource caps with an explicit CPU limit, and multi-AZ hard spread.
+# Usage:
+#   helm upgrade --install demo-api ./charts/demo-api -n demo \
+#     -f charts/demo-api/values.yaml -f charts/demo-api/values-prod.yaml
+
+environment: prod
+
+replicaCount: 3
+
+image:
+  tag: "0.1.0" # set to the released, immutable tag in CI/CD
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 12
+  targetCPUUtilizationPercentage: 65
+  targetMemoryUtilizationPercentage: 75
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2 # keep quorum of capacity during node maintenance
+  maxUnavailable: null
+
+ingress:
+  host: demo-api.example.com
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/success-codes: "200"
+    # WAF + access logs are good prod hygiene; wire to real ARNs/buckets.
+    alb.ingress.kubernetes.io/load-balancer-attributes: >-
+      access_logs.s3.enabled=true,access_logs.s3.bucket=my-project-alb-logs,access_logs.s3.prefix=demo-api
+    alb.ingress.kubernetes.io/tags: Project=my-project,ManagedBy=terraform,Environment=prod
+    alb.ingress.kubernetes.io/certificate-arn: "<PROD_ACM_CERTIFICATE_ARN>"
+
+config:
+  APP_NAME: demo-api
+  LOG_LEVEL: INFO
+  DB_CONNECT_TIMEOUT: "2"
+
+serviceMonitor:
+  enabled: true
+  interval: 15s # tighter SLO visibility in prod
+  scrapeTimeout: 10s
+
+# Enforce hard multi-AZ spread in prod: never co-locate all replicas in one AZ.
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels: {}
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels: {}

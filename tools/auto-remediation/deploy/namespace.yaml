@@ -1,0 +1,24 @@
+# Namespace for self-remediation / SRE tooling.
+#
+# We deliberately deploy here and NOT in `monitoring`: the project's Gatekeeper
+# constraints EXCLUDE the monitoring namespace (because kube-prometheus-stack
+# pulls upstream images and node-exporter needs host caps). Running the
+# controller in a dedicated, NON-excluded namespace means it is held to the FULL
+# policy bar (non-root, dropped caps, RO rootfs, pinned ghcr.io image, probes,
+# resources, ownership labels) — exactly the posture we want to demonstrate.
+#
+# Pod Security Admission: enforce the `restricted` profile. The controller is
+# built to satisfy it (non-root, RO rootfs, dropped caps, seccomp RuntimeDefault).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sre-tools
+  labels:
+    app.kubernetes.io/part-of: my-project
+    project: my-project
+    managed-by: argocd
+    environment: dev
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

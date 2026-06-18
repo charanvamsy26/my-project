@@ -1,0 +1,127 @@
+# =============================================================================
+# Recording rules — demo-api RED metrics
+# -----------------------------------------------------------------------------
+# Pre-aggregates the expensive RED queries (Rate, Errors, Duration) once at
+# evaluation time so dashboards and alerts read cheap, pre-computed series instead
+# of re-running rate()/histogram_quantile() over millions of samples on every load.
+#
+# Naming follows the Prometheus convention: level:metric:operations
+#   e.g. job:http_requests:rate5m
+#
+# Depends on the demo-api metric contract (see ../../README.md):
+#   http_requests_total{namespace,service,path,status}
+#   http_request_duration_seconds_bucket{namespace,service,path,status,le}
+# (`namespace` is injected by the k8s scrape target; the app emits service/path/status.)
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: demo-api-recording-rules
+  namespace: monitoring
+  labels:
+    # Discovery contract: the Operator only adopts rules with this release label.
+    release: kube-prometheus-stack
+    app.kubernetes.io/part-of: my-project
+    project: my-project
+spec:
+  groups:
+    # -------------------------------------------------------------------------
+    # Request rate & error rate
+    # -------------------------------------------------------------------------
+    - name: demo-api.rates
+      interval: 30s
+      rules:
+        # Total request throughput (req/s), excluding probe + scrape traffic.
+        - record: job:demo_api_requests:rate5m
+          expr: |
+            sum by (namespace, service) (
+              rate(http_requests_total{
+                service="demo-api",
+                path!~"/healthz|/readyz|/metrics"
+              }[5m])
+            )
+
+        # Per-status-class throughput — lets a dashboard stack 2xx/4xx/5xx.
+        - record: job:demo_api_requests_by_status:rate5m
+          expr: |
+            sum by (namespace, service, status) (
+              rate(http_requests_total{
+                service="demo-api",
+                path!~"/healthz|/readyz|/metrics"
+              }[5m])
+            )
+
+        # Server-error throughput (5xx only) — the numerator of the error ratio.
+        - record: job:demo_api_errors:rate5m
+          expr: |
+            sum by (namespace, service) (
+              rate(http_requests_total{
+                service="demo-api",
+                status=~"5..",
+                path!~"/healthz|/readyz|/metrics"
+              }[5m])
+            )
+
+        # Error ratio in [0,1]. `> 0` guard avoids 0/0 = NaN when there's no traffic,
+        # which would otherwise make ratio-based panels/alerts go blank.
+        - record: job:demo_api_error_ratio:rate5m
+          expr: |
+            job:demo_api_errors:rate5m
+              /
+            (job:demo_api_requests:rate5m > 0)
+
+    # -------------------------------------------------------------------------
+    # Latency quantiles (p50 / p95 / p99) from the histogram
+    # -------------------------------------------------------------------------
+    - name: demo-api.latency
+      interval: 30s
+      rules:
+        - record: job:demo_api_request_duration_seconds:p50
+          expr: |
+            histogram_quantile(0.50,
+              sum by (namespace, service, le) (
+                rate(http_request_duration_seconds_bucket{
+                  service="demo-api",
+                  path!~"/healthz|/readyz|/metrics"
+                }[5m])
+              )
+            )
+
+        - record: job:demo_api_request_duration_seconds:p95
+          expr: |
+            histogram_quantile(0.95,
+              sum by (namespace, service, le) (
+                rate(http_request_duration_seconds_bucket{
+                  service="demo-api",
+                  path!~"/healthz|/readyz|/metrics"
+                }[5m])
+              )
+            )
+
+        - record: job:demo_api_request_duration_seconds:p99
+          expr: |
+            histogram_quantile(0.99,
+              sum by (namespace, service, le) (
+                rate(http_request_duration_seconds_bucket{
+                  service="demo-api",
+                  path!~"/healthz|/readyz|/metrics"
+                }[5m])
+              )
+            )
+
+        # Mean latency (sum/count) — cheap sanity check alongside the quantiles.
+        - record: job:demo_api_request_duration_seconds:mean5m
+          expr: |
+            sum by (namespace, service) (
+              rate(http_request_duration_seconds_sum{
+                service="demo-api",
+                path!~"/healthz|/readyz|/metrics"
+              }[5m])
+            )
+            /
+            sum by (namespace, service) (
+              rate(http_request_duration_seconds_count{
+                service="demo-api",
+                path!~"/healthz|/readyz|/metrics"
+              }[5m])
+            )

@@ -1,0 +1,102 @@
+# ConstraintTemplate: K8sDisallowLatestTag
+# Rejects container images that are mutable references:
+#   - the `:latest` tag (explicit or implicit — no tag at all defaults to :latest)
+#   - any tag literally named "latest"
+# An image is acceptable if it is pinned by digest (image@sha256:...) OR carries an
+# explicit, non-"latest" tag (image:1.2.3).
+#
+# WHY: `:latest` (and untagged images) are mutable — two Pods scheduled minutes
+# apart can run different code, rollbacks are non-deterministic, and provenance is
+# lost. Pin to an immutable digest, or at minimum an explicit version tag.
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8sdisallowlatesttag
+  labels:
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: policy
+  annotations:
+    description: >-
+      Disallows mutable image references (:latest or untagged); requires an
+      explicit tag or a digest.
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sDisallowLatestTag
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            exemptImages:
+              type: array
+              description: >-
+                Image references (exact or prefix*) allowed to bypass the rule.
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8sdisallowlatesttag
+
+        import future.keywords.contains
+        import future.keywords.if
+        import future.keywords.in
+
+        # All containers in the Pod spec: app, init, and ephemeral.
+        all_containers contains c if {
+            some c in input.review.object.spec.containers
+        }
+
+        all_containers contains c if {
+            some c in input.review.object.spec.initContainers
+        }
+
+        all_containers contains c if {
+            some c in input.review.object.spec.ephemeralContainers
+        }
+
+        # Violation: explicit :latest tag.
+        violation contains {"msg": msg} if {
+            some c in all_containers
+            not exempt(c.image)
+            endswith(c.image, ":latest")
+            msg := sprintf("container <%v> uses the mutable :latest tag (image <%v>)", [c.name, c.image])
+        }
+
+        # Violation: no tag and no digest at all -> implicitly :latest.
+        violation contains {"msg": msg} if {
+            some c in all_containers
+            not exempt(c.image)
+            not has_digest(c.image)
+            not has_tag(c.image)
+            msg := sprintf("container <%v> image <%v> has no explicit tag or digest (defaults to :latest)", [c.name, c.image])
+        }
+
+        # An image is "exempt" if it matches an entry in exemptImages.
+        # Trailing "*" is treated as a prefix match.
+        exempt(image) if {
+            some pattern in object.get(input.parameters, "exemptImages", [])
+            exact_or_prefix(pattern, image)
+        }
+
+        exact_or_prefix(pattern, image) if pattern == image
+
+        exact_or_prefix(pattern, image) if {
+            endswith(pattern, "*")
+            prefix := trim_suffix(pattern, "*")
+            startswith(image, prefix)
+        }
+
+        # A digest reference contains "@sha256:" (or any @<algo>:).
+        has_digest(image) if contains(image, "@")
+
+        # Heuristic for "has an explicit tag": there is a ":" in the final path
+        # component that is not part of a registry "host:port". We split on "/"
+        # and look for a ":" in the last segment.
+        has_tag(image) if {
+            not has_digest(image)
+            parts := split(image, "/")
+            last := parts[count(parts) - 1]
+            contains(last, ":")
+        }

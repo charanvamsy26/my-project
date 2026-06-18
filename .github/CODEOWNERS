@@ -1,0 +1,30 @@
+# CODEOWNERS — automatic review requests + merge gating.
+#
+# GitHub requests review from the matching owner(s) for any changed path. When
+# combined with branch protection ("Require review from Code Owners"), this
+# enforces that the right person signs off on each area of the platform.
+#
+# Syntax: <path glob>  <space-separated @owners>
+# Later matches win, so order from general -> specific.
+
+# Default owner for everything not matched below.
+*                           @charanvamsy
+
+# --- Infrastructure ---------------------------------------------------------
+/terraform/                 @charanvamsy
+/terraform/environments/prod/  @charanvamsy   # prod changes warrant extra care
+
+# --- Kubernetes / Helm / GitOps --------------------------------------------
+/helm/                      @charanvamsy
+/k8s/                       @charanvamsy
+
+# --- Policy (OPA Gatekeeper) -----------------------------------------------
+/policy/                    @charanvamsy
+
+# --- Application ------------------------------------------------------------
+/app/                       @charanvamsy
+
+# --- CI/CD + repo automation (this builder's domain) ------------------------
+/.github/                   @charanvamsy
+/Makefile                   @charanvamsy
+/.pre-commit-config.yaml    @charanvamsy

@@ -1,0 +1,97 @@
+---
+# Dependabot keeps dependencies and pinned actions current with grouped,
+# low-noise PRs. We pin everything in this repo (actions by tag, Terraform
+# providers, pip deps, Docker base images), so automated bumps are how we stay
+# patched without manual toil.
+#
+# Schedules are staggered across the week to avoid a Monday PR avalanche.
+version: 2
+
+updates:
+  # --- GitHub Actions (workflow `uses:` pins) -------------------------------
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    labels: [dependencies, ci]
+    commit-message:
+      prefix: "ci(actions)"
+    groups:
+      # Batch all action bumps into one PR — they're low-risk and reviewed together.
+      github-actions:
+        patterns: ["*"]
+
+  # --- Terraform (providers + modules) -------------------------------------
+  # Dependabot reads required_providers across the tree; one entry per root.
+  - package-ecosystem: terraform
+    directory: "/terraform/environments/dev"
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: "06:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    labels: [dependencies, terraform, dev]
+    commit-message:
+      prefix: "chore(tf-dev)"
+
+  - package-ecosystem: terraform
+    directory: "/terraform/environments/prod"
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: "06:30"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    labels: [dependencies, terraform, prod]
+    commit-message:
+      prefix: "chore(tf-prod)"
+
+  - package-ecosystem: terraform
+    directory: "/terraform/modules"
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: "07:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    labels: [dependencies, terraform, modules]
+    commit-message:
+      prefix: "chore(tf-modules)"
+
+  # --- Python (demo-api) ---------------------------------------------------
+  - package-ecosystem: pip
+    directory: "/app"
+    schedule:
+      interval: weekly
+      day: wednesday
+      time: "06:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    labels: [dependencies, python]
+    commit-message:
+      prefix: "chore(app)"
+    groups:
+      # Group dev tooling (ruff/pytest) separately from runtime deps so a flaky
+      # test-tool bump can't block a security patch to a runtime library.
+      python-dev:
+        dependency-type: development
+      python-runtime:
+        dependency-type: production
+
+  # --- Docker (demo-api base image) ----------------------------------------
+  - package-ecosystem: docker
+    directory: "/app"
+    schedule:
+      interval: weekly
+      day: thursday
+      time: "06:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 3
+    labels: [dependencies, docker]
+    commit-message:
+      prefix: "chore(docker)"

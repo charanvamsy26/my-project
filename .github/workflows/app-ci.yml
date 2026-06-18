@@ -1,0 +1,181 @@
+---
+# Application CI for the demo-api Flask service.
+#
+# PR / push to a branch -> lint + test + build + Trivy scan (no push).
+# Push to main          -> additionally push the image to GHCR.
+#
+# Pushing only on main keeps untrusted PR code from publishing artifacts, while
+# still giving every PR a full build + vulnerability scan for fast feedback.
+name: app-ci
+
+"on":
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - ".github/workflows/app-ci.yml"
+  pull_request:
+    paths:
+      - "app/**"
+      - ".github/workflows/app-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: app-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  # Single source of truth for the image coordinates used across jobs.
+  IMAGE: "ghcr.io/charanvamsy/demo-api"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Lint + unit tests. Fast, no Docker, runs on every event.
+  # ---------------------------------------------------------------------------
+  test:
+    name: lint & test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: app/requirements*.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # requirements-dev.txt is expected to pull in the runtime deps plus
+          # ruff + pytest; fall back gracefully so CI is robust to layout.
+          if [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          else
+            pip install -r requirements.txt ruff pytest pytest-cov
+          fi
+
+      - name: Ruff (lint)
+        run: ruff check .
+
+      - name: Ruff (format check)
+        run: ruff format --check .
+
+      - name: Pytest
+        # Coverage is reported but not gated here; gate it in branch protection
+        # via the Codecov/coverage status if desired.
+        run: pytest -q --cov=. --cov-report=term-missing
+
+  # ---------------------------------------------------------------------------
+  # Build the image, scan it with Trivy, and (only on main) push to GHCR.
+  # ---------------------------------------------------------------------------
+  build:
+    name: build, scan & push
+    runs-on: ubuntu-latest
+    needs: [test]
+    permissions:
+      contents: read
+      packages: write        # push to GHCR
+      security-events: write  # upload Trivy SARIF to code scanning
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Derive image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          # No :latest by policy. Tags: branch name, PR ref, semver from git
+          # tags, and an immutable sha tag for traceability.
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=sha,format=long
+
+      - name: Log in to GHCR
+        # Only authenticate when we will actually push (main). PR builds stay
+        # anonymous so the registry token is never exposed to fork code.
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image (load locally for scanning)
+        uses: docker/build-push-action@v6
+        with:
+          context: app
+          file: app/Dockerfile
+          # Load into the local daemon so Trivy can scan the exact bytes we
+          # would push, before we push them.
+          load: true
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trivy image scan (SARIF)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          # Scan the first generated tag; all tags point at the same image id.
+          image-ref: ${{ env.IMAGE }}:sha-${{ github.sha }}
+          format: sarif
+          output: trivy-image.sarif
+          ignore-unfixed: true
+          vuln-type: os,library
+        env:
+          # Pull the vuln DB from GHCR to avoid Docker Hub rate limits.
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db:2
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-image.sarif
+          category: trivy-image
+
+      - name: Trivy gate (fail on HIGH/CRITICAL)
+        # Re-run in table mode with exit-code so the job fails on real findings;
+        # the SARIF upload above always succeeds for the security dashboard.
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.IMAGE }}:sha-${{ github.sha }}
+          format: table
+          exit-code: "1"
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+        env:
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db:2
+
+      - name: Push image to GHCR
+        # Reuses the build cache from the load step, so this is effectively a
+        # push of already-built layers — no rebuild.
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: docker/build-push-action@v6
+        with:
+          context: app
+          file: app/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

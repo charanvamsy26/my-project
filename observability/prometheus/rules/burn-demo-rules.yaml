@@ -1,0 +1,88 @@
+# =============================================================================
+# Burn-demo recording rules — convenience series for the error-budget burn demo
+# -----------------------------------------------------------------------------
+# These rules exist ONLY so the burn-demo dashboard
+# (../../grafana/dashboards/demo-api-slo-burn.json) reads pre-named, ready-to-plot
+# series instead of repeating the same `/ 0.001` arithmetic in every panel. They
+# add NOTHING new to the SLO math — they are thin derivations of series already
+# recorded in slo-rules.yaml:
+#
+#   slo:sli_error:ratio_rate5m / 30m / 1h / 6h   (per-window 5xx error ratio)
+#   slo:error_budget:consumed_ratio30d           (fraction of 30d budget spent)
+#   slo:error_budget:ratio = 0.001               (the budget itself)
+#
+# We deliberately do NOT redefine any of the above. slo-rules.yaml remains the
+# single source of truth for the SLI/SLO; if it changes, these follow for free.
+#
+# What slo-rules.yaml does NOT already expose (and what the burn demo needs):
+#   1. error-budget *remaining* as a clamped [0,1] ratio  -> a stat/gauge panel
+#   2. a named *fast* burn rate (1h window / budget)       -> the "page" signal
+#   3. a named *slow* burn rate (6h window / budget)       -> the "ticket" signal
+#
+# Metric contract consumed (verbatim, see ../../README.md):
+#   http_requests_total{service="demo-api", path, status}   (status is RAW code)
+#   error  := status =~ "5.."        valid := path !~ "/healthz|/readyz|/metrics"
+#   namespace is injected by the k8s scrape target, not emitted by the app.
+#
+# Naming follows the same slo:... convention as slo-rules.yaml so the two files
+# read as one coherent set when an on-call engineer greps for `slo:`.
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: demo-api-burn-demo-rules
+  namespace: monitoring
+  labels:
+    # Discovery contract: the Prometheus Operator only adopts PrometheusRules that
+    # carry this release label (matches recording-rules.yaml / slo-rules.yaml).
+    release: kube-prometheus-stack
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: slo-burn-demo
+    project: my-project
+    slo: demo-api-availability
+spec:
+  groups:
+    # -------------------------------------------------------------------------
+    # 1) Error budget remaining (30d) as a clamped ratio in [0, 1].
+    #    remaining = 1 - consumed.  Clamped at 0 so a blown budget reads "0%"
+    #    rather than going negative and confusing a gauge's min/max scaling.
+    #    The dashboard's "Error Budget Remaining" stat/gauge reads this directly.
+    # -------------------------------------------------------------------------
+    - name: demo-api.burn-demo.budget
+      interval: 30s
+      rules:
+        - record: slo:error_budget:remaining_ratio30d
+          labels: { slo: demo-api-availability, service: demo-api }
+          expr: |
+            clamp_min(1 - slo:error_budget:consumed_ratio30d{service="demo-api"}, 0)
+
+    # -------------------------------------------------------------------------
+    # 2) Named burn rates = (error ratio over window) / error budget (0.001).
+    #
+    #    burn_rate = 1  -> budget lasts exactly 30d
+    #    burn_rate = 6  -> "page" (5% of budget in 6h)  [slow-page threshold]
+    #    burn_rate = 14.4 -> "page" (2% of budget in 1h) [fast-page threshold]
+    #
+    #    We expose the two windows the demo visualises:
+    #      fast = 1h window  (reacts within minutes of injecting chaos)
+    #      slow = 6h window  (the steadier line that lags then catches up)
+    #
+    #    Dividing by the recorded budget series (not a hard-coded 0.001) keeps the
+    #    objective in exactly one place — slo-rules.yaml.
+    # -------------------------------------------------------------------------
+    - name: demo-api.burn-demo.rates
+      interval: 30s
+      rules:
+        - record: slo:burn_rate:fast
+          labels: { slo: demo-api-availability, service: demo-api, window: 1h }
+          expr: |
+            slo:sli_error:ratio_rate1h{service="demo-api"}
+              /
+            slo:error_budget:ratio{service="demo-api"}
+
+        - record: slo:burn_rate:slow
+          labels: { slo: demo-api-availability, service: demo-api, window: 6h }
+          expr: |
+            slo:sli_error:ratio_rate6h{service="demo-api"}
+              /
+            slo:error_budget:ratio{service="demo-api"}

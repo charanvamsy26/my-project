@@ -1,0 +1,145 @@
+# =============================================================================
+# Alertmanager configuration — my-project
+# -----------------------------------------------------------------------------
+# Routing tree, Slack receivers, and inhibition rules.
+#
+# Loaded into Alertmanager from a Kubernetes Secret (NOT inlined in Helm values),
+# so the Slack webhook never lands in Git. In dev/prod the Secret is rendered by
+# External Secrets from AWS Secrets Manager; the webhook below is a placeholder.
+#
+#   kubectl create secret generic \
+#     alertmanager-kube-prometheus-stack-alertmanager \
+#     --from-file=alertmanager.yaml=alertmanager.yaml -n monitoring
+#
+# Validate:  amtool check-config alertmanager.yaml
+# =============================================================================
+
+global:
+  resolve_timeout: 5m
+  # Slack webhook is referenced from a templated secret value at deploy time.
+  # Placeholder — replace via External Secrets, never commit a real URL.
+  slack_api_url: "<SLACK_WEBHOOK_URL>"
+
+# -----------------------------------------------------------------------------
+# Routing tree
+# -----------------------------------------------------------------------------
+# Default = warnings to a low-noise channel. Critical short-circuits to the paging
+# channel with no group_wait so a real outage notifies immediately. Child routes
+# match on the `severity` label set by the rules.
+route:
+  receiver: slack-warnings           # catch-all
+  # Group related alerts so one incident is one Slack thread, not 50 messages.
+  group_by: ["alertname", "namespace", "service", "severity"]
+  group_wait: 30s                    # brief wait to batch the first burst
+  group_interval: 5m                 # wait before adding new alerts to a group
+  repeat_interval: 4h                # re-notify unresolved warnings every 4h
+
+  routes:
+    # --- Watchdog: the always-firing heartbeat from kube-prometheus-stack. ----
+    # Routed to a black hole here; an external dead-man's-switch (e.g. healthchecks.io)
+    # should consume it to detect "Alertmanager itself is down".
+    - receiver: "null"
+      matchers:
+        - alertname = "Watchdog"
+
+    # --- Critical: page immediately, re-page hourly until resolved. -----------
+    - receiver: slack-critical
+      matchers:
+        - severity = "critical"
+      group_wait: 10s                # page fast
+      group_interval: 5m
+      repeat_interval: 1h
+      continue: false
+
+    # --- SLO burn alerts get their own thread so on-call can track budget. ----
+    - receiver: slack-slo
+      matchers:
+        - slo =~ ".+"
+      group_by: ["slo", "service", "severity"]
+      group_wait: 30s
+      repeat_interval: 2h
+
+# -----------------------------------------------------------------------------
+# Inhibition rules
+# -----------------------------------------------------------------------------
+# Suppress downstream noise once a root cause is firing.
+inhibit_rules:
+  # 1) A firing critical for a service mutes the matching warning for the same
+  #    service — don't double-notify on the same problem at two severities.
+  - source_matchers:
+      - severity = "critical"
+    target_matchers:
+      - severity = "warning"
+    equal: ["namespace", "service", "alertname"]
+
+  # 2) If a target is down we can't trust its latency/error metrics, so mute the
+  #    SLO/RED alerts that read from it. TargetDown is the actionable signal.
+  - source_matchers:
+      - alertname = "TargetDown"
+    target_matchers:
+      - severity =~ "warning|critical"
+    equal: ["namespace", "service"]
+
+  # 3) A NotReady node will trip many pod-level alerts; mute those in favour of
+  #    the single node alert.
+  - source_matchers:
+      - alertname = "KubeNodeNotReady"
+    target_matchers:
+      - alertname =~ "PodNotReady|PodCrashLooping|DeploymentReplicasMismatch"
+    equal: ["node"]
+
+# -----------------------------------------------------------------------------
+# Receivers
+# -----------------------------------------------------------------------------
+receivers:
+  # Null receiver — for the Watchdog heartbeat (consumed externally).
+  - name: "null"
+
+  - name: slack-critical
+    slack_configs:
+      - channel: "#my-project-alerts-critical"   # placeholder channel
+        send_resolved: true
+        title: '[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname }}'
+        text: >-
+          {{ range .Alerts -}}
+          *Severity:* {{ .Labels.severity }}
+          *Service:* {{ .Labels.service }}{{ if .Labels.namespace }} (ns: {{ .Labels.namespace }}){{ end }}
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          {{ if .Annotations.runbook_url }}*Runbook:* {{ .Annotations.runbook_url }}{{ end }}
+          {{ if .Annotations.dashboard_url }}*Dashboard:* {{ .Annotations.dashboard_url }}{{ end }}
+          {{ end }}
+
+  - name: slack-warnings
+    slack_configs:
+      - channel: "#my-project-alerts"            # placeholder channel
+        send_resolved: true
+        title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
+        text: >-
+          {{ range .Alerts -}}
+          *Severity:* {{ .Labels.severity }}
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          {{ if .Annotations.runbook_url }}*Runbook:* {{ .Annotations.runbook_url }}{{ end }}
+          {{ end }}
+
+  - name: slack-slo
+    slack_configs:
+      - channel: "#my-project-slo"               # placeholder channel
+        send_resolved: true
+        title: '[SLO {{ .Status | toUpper }}] {{ .CommonLabels.slo }} — {{ .CommonLabels.alertname }}'
+        text: >-
+          {{ range .Alerts -}}
+          *SLO:* {{ .Labels.slo }}
+          *Service:* {{ .Labels.service }}
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          {{ if .Annotations.runbook_url }}*Runbook:* {{ .Annotations.runbook_url }}{{ end }}
+          {{ if .Annotations.dashboard_url }}*Dashboard:* {{ .Annotations.dashboard_url }}{{ end }}
+          {{ end }}
+
+# -----------------------------------------------------------------------------
+# Notification templates (built-in defaults are sufficient; custom file optional)
+# -----------------------------------------------------------------------------
+templates:
+  - "/etc/alertmanager/config/*.tmpl"

@@ -1,0 +1,502 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      },
+      {
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": false,
+        "iconColor": "green",
+        "name": "Demo phases (manual)",
+        "type": "dashboard",
+        "tags": ["demo", "baseline", "burn", "recovery"]
+      },
+      {
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "enable": true,
+        "hide": false,
+        "iconColor": "red",
+        "name": "Fast-burn alert firing",
+        "expr": "ALERTS{alertname=\"DemoApiErrorBudgetBurnFast\", alertstate=\"firing\"}",
+        "titleFormat": "Fast burn (page) — {{ severity }}",
+        "useValueForTime": false
+      },
+      {
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "enable": true,
+        "hide": false,
+        "iconColor": "orange",
+        "name": "Slow-burn alert firing",
+        "expr": "ALERTS{alertname=\"DemoApiErrorBudgetBurnSlow\", alertstate=\"firing\"}",
+        "titleFormat": "Slow burn (ticket) — {{ severity }}",
+        "useValueForTime": false
+      }
+    ]
+  },
+  "description": "Watchable error-budget burn demo for demo-api. Inject errors/latency with the chaos hooks (CHAOS_ERROR_RATE / /admin/chaos) and drive load with load-test/k6 to watch the 30d error budget drain and the fast/slow burn-rate lines cross their page/ticket thresholds, then recover. Companion to demo-api-overview.json.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "title": "demo-api — Overview (RED + SLO)",
+      "type": "link",
+      "url": "/d/demo-api-overview"
+    }
+  ],
+  "liveNow": false,
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["my-project", "demo-api", "slo", "error-budget", "burn", "demo"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "type": "datasource"
+      },
+      {
+        "current": { "selected": true, "text": "demo", "value": "demo" },
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "definition": "label_values(http_requests_total{service=\"demo-api\"}, namespace)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Namespace",
+        "name": "namespace",
+        "query": {
+          "query": "label_values(http_requests_total{service=\"demo-api\"}, namespace)",
+          "refId": "namespace"
+        },
+        "refresh": 2,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "utc",
+  "title": "demo-api — Error Budget Burn (Demo)",
+  "uid": "demo-api-slo-burn",
+  "version": 1,
+  "weekStart": "",
+  "panels": [
+    {
+      "type": "text",
+      "title": "How to watch this demo",
+      "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+      "gridPos": { "h": 5, "w": 24, "x": 0, "y": 0 },
+      "id": 50,
+      "options": {
+        "mode": "markdown",
+        "content": "### Error-budget burn demo — what you are watching\nThree phases, left to right on every panel. Add a Grafana **region annotation** (Ctrl/Cmd-drag on any graph) tagged `baseline`, `burn`, or `recovery` to mark them live.\n\n| Phase | What you do | What the panels show |\n|-------|-------------|----------------------|\n| **1 · Baseline** | Steady traffic from `load-test/k6`, chaos OFF | Error rate ~0%, budget **flat at ~100%**, burn rate near **0** |\n| **2 · Burn** | Turn on chaos: `CHAOS_ERROR_RATE` / `CHAOS_LATENCY_MS` (env) or `POST /admin/chaos` | Error rate jumps, **fast (1h) burn** crosses **14.4× (page)**, **slow (6h) burn** lags then crosses **6× / 3×**, **budget remaining drains** |\n| **3 · Recovery** | Chaos OFF (`POST /admin/chaos {error_rate:0}`) | Error rate returns to 0%, burn-rate lines fall back below thresholds, budget remaining stops draining and slowly recovers over the 30d window |\n\nRed/orange vertical lines are auto-annotations for the **fast/slow burn alerts** firing (`ALERTS{...}`). See `observability/README.md` → *Error-budget burn demo*."
+      }
+    },
+    {
+      "type": "row",
+      "title": "Error budget — the headline",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 100,
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Error Budget Remaining (30d)",
+      "description": "Fraction of the 0.1% / 30d error budget still available. 100% = untouched, 0% = exhausted. Drains during the burn phase. Series: slo:error_budget:remaining_ratio30d (burn-demo-rules.yaml).",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 6, "x": 0, "y": 6 },
+      "id": 1,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1,
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 0.25 },
+              { "color": "green", "value": 0.5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "slo:error_budget:remaining_ratio30d{service=\"demo-api\"}",
+          "legendFormat": "budget remaining",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "Budget Remaining — gauge",
+      "description": "Same series as the stat, as a gauge so the drain during the burn phase is visceral. Green ≥50%, orange ≥25%, red below.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 6, "x": 6, "y": 6 },
+      "id": 2,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 0.25 },
+              { "color": "green", "value": 0.5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "slo:error_budget:remaining_ratio30d{service=\"demo-api\"}",
+          "legendFormat": "budget remaining",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Error Budget Remaining over time (30d window)",
+      "description": "Watch this line: flat at ~100% during baseline, draining during burn, flattening/recovering after chaos is turned off. Series: slo:error_budget:remaining_ratio30d.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 6 },
+      "id": 3,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 2,
+          "min": 0,
+          "max": 1,
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 25,
+            "lineWidth": 2,
+            "gradientMode": "opacity",
+            "showPoints": "never"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 0.25 },
+              { "color": "green", "value": 0.5 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["min", "lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "slo:error_budget:remaining_ratio30d{service=\"demo-api\"}",
+          "legendFormat": "budget remaining",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Burn rate — fast (page) vs slow (ticket)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
+      "id": 101,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Error-Budget Burn Rate — fast (1h) & slow (6h)",
+      "description": "Burn rate = (window error ratio) / error budget. 1× spends the 30d budget in 30d. Thresholds: 14.4× fast-page, 6× slow-page, 3× ticket. Fast (1h) reacts within minutes of chaos; slow (6h) lags then catches up. Series: slo:burn_rate:fast / slo:burn_rate:slow (burn-demo-rules.yaml).",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 16, "x": 0, "y": 14 },
+      "id": 4,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1,
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "thresholdsStyle": { "mode": "line+area" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 3 },
+              { "color": "orange", "value": 6 },
+              { "color": "red", "value": 14.4 }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "fast burn (1h)" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } },
+              { "id": "custom.lineWidth", "value": 3 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "slow burn (6h)" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "calcs": ["max", "lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "slo:burn_rate:fast{service=\"demo-api\"}",
+          "legendFormat": "fast burn (1h)",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "slo:burn_rate:slow{service=\"demo-api\"}",
+          "legendFormat": "slow burn (6h)",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Current burn rate",
+      "description": "Latest fast (1h) and slow (6h) burn rates as numbers. Green <3×, yellow ≥3× (ticket), orange ≥6×, red ≥14.4× (page).",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 14 },
+      "id": 5,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 3 },
+              { "color": "orange", "value": 6 },
+              { "color": "red", "value": 14.4 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "vertical",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "slo:burn_rate:fast{service=\"demo-api\"}",
+          "legendFormat": "fast (1h)",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "slo:burn_rate:slow{service=\"demo-api\"}",
+          "legendFormat": "slow (6h)",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "RED — what's driving the burn",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
+      "id": 102,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Request Rate (req/s) by status",
+      "description": "Throughput from load-test/k6, stacked by HTTP status class. During burn the 5xx band appears on top. Series: job:demo_api_requests_by_status:rate5m (recording-rules.yaml).",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 24 },
+      "id": 6,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 25,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "stacking": { "group": "A", "mode": "normal" }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": "5.*" },
+            "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "job:demo_api_requests_by_status:rate5m{namespace=\"$namespace\", service=\"demo-api\"}",
+          "legendFormat": "{{ status }}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Error Rate (5xx %)",
+      "description": "Fraction of user requests returning 5xx — the direct burn driver. Jumps when chaos is on, returns to ~0% on recovery. Threshold line at 5% (DemoApiHighErrorRate). Series: job:demo_api_error_ratio:rate5m (recording-rules.yaml).",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 24 },
+      "id": 7,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 2,
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "thresholdsStyle": { "mode": "line" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 0.05 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["max", "lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "job:demo_api_error_ratio:rate5m{namespace=\"$namespace\", service=\"demo-api\"}",
+          "legendFormat": "5xx error ratio",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency p99",
+      "description": "p99 request duration. CHAOS_LATENCY_MS pushes this above the 500ms p99 SLO budget (red line) during the burn phase. Series: job:demo_api_request_duration_seconds:p99 (recording-rules.yaml).",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 24 },
+      "id": 8,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3,
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "never",
+            "thresholdsStyle": { "mode": "line" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 0.5 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["max", "lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "job:demo_api_request_duration_seconds:p99{namespace=\"$namespace\", service=\"demo-api\"}",
+          "legendFormat": "p99",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

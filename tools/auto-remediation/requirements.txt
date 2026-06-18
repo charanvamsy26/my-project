@@ -1,0 +1,13 @@
+# auto-remediation controller runtime dependencies.
+# Pinned for reproducible image builds (matches the supply-chain posture of the
+# rest of the platform: immutable, versioned artifacts only).
+
+# HTTP client for the Prometheus query API. The only hard runtime dependency.
+requests==2.32.3
+
+# Official Kubernetes Python client. Used for the in-cluster rollout restart
+# (patch the deployment's pod-template restartedAt annotation) via the mounted
+# ServiceAccount token + least-privilege RBAC. If this import is unavailable the
+# controller transparently falls back to subprocess `kubectl`, so it is listed
+# here to make the container self-contained and avoid shelling out.
+kubernetes==30.1.0

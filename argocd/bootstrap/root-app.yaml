@@ -1,0 +1,52 @@
+# Root Application — the "app-of-apps".
+#
+# This is the ONE Application a human applies by hand (after `argocd/install/`). Its source is the
+# directory of child Application manifests (`argocd/apps/`). ArgoCD renders that directory, sees the
+# child Applications, and creates them — each of which then deploys its own component. From here on,
+# adding/removing a platform component is a single PR that adds/removes a file under argocd/apps/.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  # Cascade deletion to all generated child Applications (and their resources) if root is deleted.
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # Render the children before any real workload syncs.
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    project: my-project
+    managed-by: argocd
+spec:
+  project: my-project
+
+  source:
+    repoURL: https://github.com/charanvamsy/my-project.git
+    targetRevision: main
+    # The folder of child Application YAMLs. `directory.recurse` lets us nest if needed later.
+    path: argocd/apps
+    directory:
+      recurse: true
+      # Only treat ArgoCD Application manifests in this dir as resources.
+      include: "*.yaml"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true       # remove child apps whose YAML was deleted from Git
+      selfHeal: true    # revert manual edits to child apps
+      allowEmpty: false # never let a bad render delete every child at once
+    syncOptions:
+      - CreateNamespace=false   # argocd ns already exists from install/
+      - ApplyOutOfSyncOnly=true # only push changed children, faster reconciles
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

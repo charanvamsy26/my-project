@@ -281,4 +281,4 @@ cd ../../bootstrap && terraform destroy             # force_destroy defaults to 
 
 ## License
 
-[MIT](LICENSE) © 2026 charanvamsy26
+[MIT](LICENSE) © 2026 Charan Vamsy

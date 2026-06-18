@@ -156,8 +156,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [validate, lint, security]
     # Skip the authenticated plan for PRs from forks: OIDC role assumption from
-    # an untrusted fork would be a credential-exposure risk.
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    # an untrusted fork would be a credential-exposure risk. Also skip when the
+    # AWS_PLAN_ROLE_ARN repo variable isn't configured yet (e.g. a fresh clone of
+    # this template), so CI stays green until real AWS credentials are wired up.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository
+      && vars.AWS_PLAN_ROLE_ARN != ''
     permissions:
       contents: read
       id-token: write       # required for AWS OIDC federation

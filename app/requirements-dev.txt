@@ -1,6 +1,6 @@
 # Development / CI dependencies. Installed on top of requirements.txt.
 -r requirements.txt
 
-ruff~=0.6        # linter + formatter (app-ci "Ruff (lint)" / "Ruff (format check)")
-pytest~=8.0      # test runner for tests/test_app.py
-pytest-cov~=5.0  # coverage reporting (pytest --cov in app-ci)
+ruff~=0.15        # linter + formatter (app-ci "Ruff (lint)" / "Ruff (format check)")
+pytest~=9.1      # test runner for tests/test_app.py
+pytest-cov~=7.1  # coverage reporting (pytest --cov in app-ci)

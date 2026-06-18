@@ -1,0 +1,24 @@
+# Example NON-COMPLIANT manifest — should FAIL kubernetes.rego on multiple rules.
+# Try it:  conftest test -p policy examples/bad-deployment.yaml
+# Expected denials: default namespace, :latest tag, disallowed registry (docker.io),
+# missing requests/limits, missing runAsNonRoot, missing drop ALL, missing probes.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bad-app
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bad-app
+  template:
+    metadata:
+      labels:
+        app: bad-app
+    spec:
+      containers:
+        - name: bad
+          image: docker.io/library/nginx:latest
+          ports:
+            - containerPort: 80

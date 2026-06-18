@@ -1,0 +1,51 @@
+# =============================================================================
+# NetworkChaos — inject +200ms latency on demo-api pods (latency SLO pressure)
+# -----------------------------------------------------------------------------
+# What it does:
+#   Adds 200ms (+/-50ms jitter) of egress network delay to all packets leaving
+#   the selected demo-api pods for 60s. This inflates request latency end to end.
+#   Because the p99 latency SLO budget is 500ms (the histogram's 0.5s bucket /
+#   the DemoApiHighLatencyP99 alert), a sustained +200ms pushes the tail toward —
+#   and over short bursts past — that threshold, so you can watch
+#   http_request_duration_seconds p99 climb on the demo-api-overview dashboard
+#   and DemoApiHighLatencyP99 fire, then recover when the experiment ends.
+#
+# Scope / safety:
+#   - namespace: demo                         (NOT prod — see ../README.md)
+#   - selector:  app.kubernetes.io/name=demo-api
+#   - mode: all                               (delay every demo-api pod so the
+#                                              effect is visible even at 1 replica)
+#   - direction: to                           (egress from the target pods)
+#   - duration: 60s                           (auto-reverts; delete to stop early)
+#
+# Run:
+#   kubectl -n demo apply -f network-latency.yaml
+#   # generate traffic against "/" and watch p99 on the dashboard
+#   kubectl -n demo delete -f network-latency.yaml   # removes the delay
+# =============================================================================
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: demo-api-network-latency
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: demo-api
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: chaos-experiment
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  action: delay
+  mode: all # affect every matching pod
+  selector:
+    namespaces:
+      - demo
+    labelSelectors:
+      # Must match the demo-api Helm chart's selectorLabels exactly.
+      app.kubernetes.io/name: demo-api
+  direction: to # apply the delay to egress traffic from the target pods
+  delay:
+    latency: "200ms"
+    jitter: "50ms"
+    correlation: "50" # 50% correlation between successive packet delays
+  # Short window so latency auto-recovers; delete the object to stop early.
+  duration: "60s"

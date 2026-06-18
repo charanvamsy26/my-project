@@ -1,0 +1,85 @@
+# =============================================================================
+# Declarative SLO definition — Sloth format (https://sloth.dev)
+# -----------------------------------------------------------------------------
+# This is the SOURCE OF TRUTH for demo-api's SLO. Sloth compiles it into the
+# Prometheus recording + multi-window multi-burn-rate alerting rules that live,
+# hand-auditable, in ../prometheus/rules/slo-rules.yaml.
+#
+# Regenerate the rules after editing this file:
+#   sloth generate -i slo/slo.yaml -o prometheus/rules/slo-rules.yaml
+#   sloth validate -i slo/slo.yaml
+#
+# We use Sloth (vs OpenSLO) because it emits Prometheus-Operator `PrometheusRule`
+# CRDs directly, matching how the rest of this stack is deployed, and because its
+# generated MWMB alerts are the canonical Google-SRE implementation.
+# =============================================================================
+version: "prometheus/v1"
+
+service: "demo-api"
+
+# Labels propagated onto every generated rule and resulting alert/series, so SLO
+# series are discoverable and route correctly in Alertmanager.
+labels:
+  project: my-project
+  team: platform
+  owner: platform-sre
+
+slos:
+  - name: "demo-api-availability"
+    # 99.9% of valid requests must succeed over the rolling 30-day window. The
+    # window is implicit in Sloth's standard alerting (it generates 30d burn math).
+    objective: 99.9
+    description: >-
+      99.9% of valid HTTP requests to demo-api return a non-5xx response,
+      measured over a rolling 30-day window. Valid requests exclude liveness,
+      readiness, and scrape paths (/healthz, /readyz, /metrics).
+
+    # --- SLI: error-ratio form (bad / total) ---------------------------------
+    # `error_query`  = rate of bad (5xx) user requests.
+    # `total_query`  = rate of all valid user requests.
+    # Sloth divides them to get the error SLI and derives burn rates from it.
+    sli:
+      events:
+        error_query: |
+          sum(rate(http_requests_total{
+            service="demo-api",
+            status=~"5..",
+            path!~"/healthz|/readyz|/metrics"
+          }[{{.window}}]))
+        total_query: |
+          sum(rate(http_requests_total{
+            service="demo-api",
+            path!~"/healthz|/readyz|/metrics"
+          }[{{.window}}]))
+
+    # --- Alerting: page on fast burn, ticket on slow burn --------------------
+    # These names/labels match the Alertmanager routing tree (severity=critical
+    # pages; slo=~".+" threads into #my-project-slo).
+    alerting:
+      name: DemoApiAvailabilitySLO
+      labels:
+        slo: demo-api-availability
+      annotations:
+        summary: "demo-api availability SLO error-budget burn"
+        runbook_url: "https://runbooks.example.com/demo-api/slo-burn"
+        dashboard_url: "https://grafana.example.com/d/demo-api-overview"
+      # Page-level (fast burn): 14.4x@1h/5m and 6x@6h/30m.
+      page_alert:
+        labels:
+          severity: critical
+          team: platform
+      # Ticket-level (slow burn): 3x@24h/2h and 1x@72h/6h.
+      ticket_alert:
+        labels:
+          severity: warning
+          team: platform
+
+# -----------------------------------------------------------------------------
+# NOTE ON ERROR BUDGET
+# -----------------------------------------------------------------------------
+# objective 99.9% over 30d  ⇒  error budget = 0.1% of requests
+#                           ⇒  ≈ 43m 12s of full-downtime-equivalent per 30 days.
+# Sloth emits a `slo:objective:ratio` and budget-burn alert series equivalent to
+# the hand-written ../prometheus/rules/slo-rules.yaml. Keep the two in sync: edit
+# here, regenerate, commit both.
+# -----------------------------------------------------------------------------

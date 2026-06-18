@@ -1,0 +1,48 @@
+# =============================================================================
+# PodChaos — kill one demo-api pod (resilience: does the Deployment self-heal?)
+# -----------------------------------------------------------------------------
+# What it does:
+#   Selects pods labelled app.kubernetes.io/name=demo-api in namespace `demo`
+#   and kills ONE of them ("fixed: 1"). Kubernetes should reschedule it; the
+#   Service/ALB should keep serving from the surviving replica(s). With a single
+#   dev replica this briefly drops the pod — watch it come back and watch
+#   readiness/Deployment-replica alerts (PodNotReady / DeploymentReplicasMismatch)
+#   resolve. Run prod overlays (>=2 replicas + PDB) to see a truly zero-impact kill.
+#
+# Scope / safety:
+#   - namespace: demo                         (NOT prod — see ../README.md)
+#   - selector:  app.kubernetes.io/name=demo-api  (the chart's stable selector label)
+#   - mode: one                               (exactly one pod, minimal blast radius)
+#   - duration: 30s                           (pod-kill is instantaneous; this just
+#                                              bounds how long the experiment object
+#                                              stays "active" before finishing)
+#
+# Run:
+#   kubectl -n demo apply -f pod-kill.yaml
+#   kubectl -n demo get pods -w          # observe the kill + reschedule
+#   kubectl -n demo delete -f pod-kill.yaml   # clean up (no lingering fault)
+# =============================================================================
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: demo-api-pod-kill
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: demo-api
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: chaos-experiment
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  # pod-kill = delete the pod (vs pod-failure, which pauses it). Tests scheduling
+  # + self-healing + the readiness/Service drain path.
+  action: pod-kill
+  mode: one # kill exactly one matching pod
+  selector:
+    namespaces:
+      - demo
+    labelSelectors:
+      # Must match the demo-api Helm chart's selectorLabels exactly.
+      app.kubernetes.io/name: demo-api
+  # Short, self-terminating. The experiment object can be deleted any time to
+  # stop early; pod-kill leaves no fault behind once the pod is rescheduled.
+  duration: "30s"

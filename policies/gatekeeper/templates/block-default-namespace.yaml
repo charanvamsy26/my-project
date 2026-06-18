@@ -1,0 +1,49 @@
+# ConstraintTemplate: K8sBlockDefaultNamespace
+# Rejects creation of workloads in the "default" namespace.
+#
+# WHY: the default namespace has no owner, no resource quotas, no NetworkPolicy, and
+# no tenancy boundary. Anything landing there is almost always a mistake (a manifest
+# missing `namespace:`). Forcing an explicit namespace makes ownership, quotas, and
+# network isolation enforceable.
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8sblockdefaultnamespace
+  labels:
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: policy
+  annotations:
+    description: >-
+      Forbids creating workloads in the default namespace.
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sBlockDefaultNamespace
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            message:
+              type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8sblockdefaultnamespace
+
+        import future.keywords.contains
+        import future.keywords.if
+
+        # The namespace seen by admission: object.metadata.namespace falls back to
+        # the request namespace; default to "default" if neither is set (which is
+        # exactly the case we want to catch).
+        ns := object.get(input.review.object.metadata, "namespace", "default")
+
+        violation contains {"msg": msg} if {
+            ns == "default"
+            msg := message
+        }
+
+        default message := "workloads must not be deployed in the 'default' namespace; set an explicit namespace"
+
+        message := input.parameters.message if input.parameters.message != ""

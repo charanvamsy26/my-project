@@ -1,0 +1,40 @@
+{{- if .Values.networkPolicy.enabled -}}
+{{- /*
+Default-deny-ingress for demo-api pods, then explicitly allow:
+  * scrape traffic from the monitoring namespace to the metrics/app port, and
+  * application traffic from the ingress path (ALB IP targets / in-cluster).
+Egress is intentionally left open here (the chart manages app ingress); tighten
+egress at the namespace/cluster level if your policy requires it.
+*/ -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "demo-api.fullname" . }}
+  labels:
+    {{- include "demo-api.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "demo-api.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    {{- if .Values.networkPolicy.allowMonitoringNamespace }}
+    # Prometheus in the monitoring namespace must reach /metrics.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.monitoringNamespaceLabel }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.service.targetPort }}
+    {{- end }}
+    {{- if .Values.networkPolicy.allowIngressController }}
+    # ALB uses IP targets and routes from outside the pod network; allow app
+    # traffic to the container port. Empty `from` = allow from any source to
+    # this port (the ALB/security groups remain the perimeter control).
+    - ports:
+        - protocol: TCP
+          port: {{ .Values.service.targetPort }}
+    {{- end }}
+{{- end }}

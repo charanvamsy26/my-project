@@ -1,0 +1,44 @@
+# Installs the OPA Gatekeeper control plane on the EKS clusters
+# (my-project-dev / my-project-prod, Kubernetes 1.30).
+#
+# WHY a remote base pinned to a tag instead of `kubectl apply -f <url>`:
+#   - Reproducible: the ?ref=vX.Y.Z below pins the exact upstream release, so a
+#     re-sync next month installs the same bits we tested today. Never track a
+#     moving branch for an admission controller — a bad upstream change could
+#     reject every Pod in the cluster.
+#   - Reviewable: bumping Gatekeeper is a one-line PR to ?ref=... that goes through
+#     the same review/CI as everything else.
+#   - Composable: our cluster Config (audit interval, exempt namespaces) is layered
+#     on top via `resources` without forking upstream YAML.
+#
+# Upgrade procedure: bump the ?ref tag below, read the upstream release notes for
+# CRD/schema changes, let CI render the kustomization, then merge. ArgoCD syncs it.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Gatekeeper ships into its own namespace.
+namespace: gatekeeper-system
+
+resources:
+  # Upstream Gatekeeper release, pinned. This single manifest creates the
+  # gatekeeper-system namespace, CRDs (ConstraintTemplate, Config, ...),
+  # the controller-manager + audit Deployments, webhooks, and RBAC.
+  #
+  # Pin to a release that supports Kubernetes 1.30. v3.16.x is validated against
+  # 1.27–1.30. Verify compatibility before bumping:
+  #   https://open-policy-agent.github.io/gatekeeper/website/docs/install/
+  - https://raw.githubusercontent.com/open-policy-agent/gatekeeper/v3.16.3/deploy/gatekeeper.yaml
+
+  # Our cluster-scoped Gatekeeper Config: which resources audit syncs into its
+  # cache + which namespaces the webhook ignores entirely.
+  - config.yaml
+
+# Tag everything we own so it is identifiable and matches project conventions.
+# (We do not relabel upstream Gatekeeper objects to avoid selector drift; these
+# labels apply to our Config and any future local resources here.)
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: my-project
+      app.kubernetes.io/component: policy
+      managed-by: argocd

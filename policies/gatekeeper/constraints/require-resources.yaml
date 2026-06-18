@@ -1,0 +1,28 @@
+# Constraint: require cpu+memory requests AND limits on every container.
+# enforcementAction: deny  (BestEffort pods destabilize nodes; non-negotiable)
+#
+# demo-api's Helm chart sets requests {cpu, memory} and limits {cpu, memory} on its
+# single container, so it complies. Init containers, if any, must also set them.
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequireResources
+metadata:
+  name: require-resource-requests-limits
+  labels:
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: policy
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    excludedNamespaces:
+      - kube-system
+      - gatekeeper-system
+      - monitoring
+      - kube-node-lease
+      - kube-public
+  parameters:
+    resources:
+      - cpu
+      - memory

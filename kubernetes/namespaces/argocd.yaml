@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+  labels:
+    app.kubernetes.io/part-of: my-project
+    project: my-project
+    managed-by: argocd
+    environment: dev
+    # ArgoCD is the GitOps control plane. It is a trusted platform component and
+    # is exempt from Gatekeeper admission to avoid bootstrap chicken-and-egg
+    # problems (Gatekeeper itself is delivered via ArgoCD).
+    admission.gatekeeper.sh/ignore: "true"
+    # ArgoCD's containers run rootless under the baseline profile; restricted
+    # can be too strict for some bundled components (e.g. redis init). Use
+    # baseline and tighten per-component if desired.
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

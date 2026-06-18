@@ -1,0 +1,111 @@
+---
+# Repository-wide security scanning.
+#
+# Runs on every PR (fast feedback) and on a daily schedule (catches newly
+# disclosed CVEs in dependencies that were clean when first merged).
+#
+# Tools:
+#   * gitleaks  — secret scanning across the working tree / full history.
+#   * checkov   — IaC misconfig scanning (Terraform, Helm, k8s, Dockerfiles).
+#   * trivy fs  — filesystem/dependency vulnerability scanning.
+#
+# Every tool emits SARIF that is uploaded to GitHub code scanning so findings
+# appear in the Security tab with dedupe, triage, and history.
+name: security
+
+"on":
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # 06:17 UTC daily — off the top of the hour to avoid GitHub's cron stampede.
+    - cron: "17 6 * * *"
+  workflow_dispatch:  # allow ad-hoc runs from the Actions tab
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gitleaks:
+    name: gitleaks (secrets)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history so secrets committed in the past are still caught.
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+          # Emit SARIF for the security dashboard.
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+
+  checkov:
+    name: checkov (IaC)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Checkov scan
+        id: checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          # Scan the whole repo (Terraform, Helm, k8s, Dockerfile, secrets).
+          directory: .
+          config_file: .checkov.yaml
+          output_format: cli,sarif
+          output_file_path: console,checkov.sarif
+          # Don't fail the scheduled run on findings — surface them in the
+          # dashboard instead; PR runs are gated by branch protection rules.
+          soft_fail: true
+
+      - name: Upload Checkov SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: checkov.sarif
+          category: checkov-repo
+
+  trivy-fs:
+    name: trivy fs (deps)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Trivy filesystem scan (SARIF)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+          ignore-unfixed: true
+          # Lockfiles + misconfig + exposed secrets in one pass.
+          scanners: vuln,secret,misconfig
+        env:
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db:2
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs

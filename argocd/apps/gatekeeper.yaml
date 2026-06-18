@@ -1,0 +1,74 @@
+# Policy: OPA Gatekeeper (admission control / policy-as-code).
+#
+# Wave 0 — policy should be enforcing before app workloads are admitted, so it installs in the
+# same early wave as observability (it has no dependency on the app, and the app depends on it
+# only insofar as the app's pods must pass admission once Gatekeeper is up).
+#
+# Multi-source: the chart is pulled from the Gatekeeper Helm repo (pinned); the constraint
+# templates and constraints (the actual policies) live in our repo under policies/gatekeeper and
+# are applied by their own deployment path. This Application installs the *engine* with our values.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gatekeeper
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  labels:
+    project: my-project
+    managed-by: argocd
+    component: policy
+spec:
+  project: my-project
+
+  sources:
+    # 1) Gatekeeper engine chart, version-pinned.
+    - repoURL: https://open-policy-agent.github.io/gatekeeper/charts
+      chart: gatekeeper
+      targetRevision: 3.17.1   # chart version pin
+      helm:
+        releaseName: gatekeeper
+        valueFiles:
+          - $values/policies/gatekeeper/values.yaml
+    # 2) Our repo, exposed as $values so the chart reads our hardened config from Git.
+    - repoURL: https://github.com/charanvamsy/my-project.git
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gatekeeper-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - ServerSideDiff=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  ignoreDifferences:
+    # Gatekeeper injects the CA bundle into its own admission webhooks after install; never fight it.
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions:
+        - '.webhooks[]?.clientConfig.caBundle'
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jqPathExpressions:
+        - '.webhooks[]?.clientConfig.caBundle'
+    # Gatekeeper rewrites the caBundle on its CRD conversion webhooks too.
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      jqPathExpressions:
+        - '.spec.conversion.webhook.clientConfig.caBundle'

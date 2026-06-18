@@ -1,0 +1,92 @@
+# Ingress: AWS Load Balancer Controller (provisions ALBs/NLBs from Ingress/Service objects).
+#
+# OPTIONAL — only needed on a real EKS cluster (it talks to the AWS APIs via IRSA). It is wave 1
+# so it is running before demo-api (wave 2) creates the Ingress that provisions the ALB for
+# demo-api.example.com.
+#
+# IRSA NOTE: the controller's ServiceAccount must be annotated with an IAM role ARN created by
+# Terraform (terraform/modules/.../aws-load-balancer-controller). That ARN is environment-specific
+# and unknown at commit time, so it is a documented placeholder below — wire it per-env (dev/prod)
+# via an overlay or by templating the value before apply.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: aws-load-balancer-controller
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    project: my-project
+    managed-by: argocd
+    component: ingress
+spec:
+  project: my-project
+
+  source:
+    repoURL: https://aws.github.io/eks-charts
+    chart: aws-load-balancer-controller
+    targetRevision: 1.9.2   # chart version pin
+    helm:
+      releaseName: aws-load-balancer-controller
+      # Inline values: this controller is configured almost entirely by a handful of cluster
+      # facts (cluster name, region, VPC, IRSA role). Keeping them here makes the per-env wiring
+      # obvious. Swap the placeholders, or template them, per environment.
+      values: |
+        clusterName: my-project-dev          # CHANGE to my-project-prod for the prod env
+        region: us-east-1
+        vpcId: <vpc-id>                       # from terraform output: vpc_id (per env)
+        # The controller must not manage its own SA — IRSA role is created by Terraform.
+        serviceAccount:
+          create: true
+          name: aws-load-balancer-controller
+          annotations:
+            # IRSA: bind the SA to the IAM role Terraform provisions for this controller.
+            eks.amazonaws.com/role-arn: arn:aws:iam::<account_id>:role/my-project-dev-aws-lb-controller
+        # Run >1 replica for availability; the controller leader-elects.
+        replicaCount: 2
+        # Security & resource defaults (no :latest, requests/limits set, non-root).
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        podDisruptionBudget:
+          maxUnavailable: 1
+        # Expose controller metrics so kube-prometheus-stack can scrape it.
+        serviceMonitor:
+          enabled: true
+          namespace: monitoring
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=false   # kube-system always exists
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  ignoreDifferences:
+    # The controller injects the CA bundle into its own webhook config at runtime.
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jqPathExpressions:
+        - '.webhooks[]?.clientConfig.caBundle'
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions:
+        - '.webhooks[]?.clientConfig.caBundle'

@@ -1,0 +1,53 @@
+# Gatekeeper cluster Config — there is exactly one, and it must be named "config"
+# in the gatekeeper-system namespace (the controller only reads that singleton).
+#
+# Two jobs:
+#   1. spec.sync.syncOnly — tells the AUDIT controller which resource kinds to
+#      replicate into OPA's in-memory cache. A constraint that reasons about OTHER
+#      objects (e.g. "this namespace must contain a NetworkPolicy", or unique
+#      Ingress hosts) can only do so if those kinds are synced. Cross-object rules
+#      silently see an empty set otherwise. We sync the kinds our policies inspect.
+#      Keep this list tight: every synced kind costs audit memory.
+#   2. spec.match — namespaces the ADMISSION WEBHOOK ignores entirely. This is the
+#      broadest, strongest exemption (see policies/README.md). Reserved for system
+#      namespaces that must never be blocked even if a constraint is misconfigured;
+#      blocking them could brick the cluster (CNI, CoreDNS, Gatekeeper itself).
+apiVersion: config.gatekeeper.sh/v1alpha1
+kind: Config
+metadata:
+  name: config
+  namespace: gatekeeper-system
+spec:
+  sync:
+    syncOnly:
+      # Core workload + networking kinds our constraints audit.
+      - group: ""
+        version: v1
+        kind: Pod
+      - group: ""
+        version: v1
+        kind: Namespace
+      - group: ""
+        version: v1
+        kind: Service
+      - group: networking.k8s.io
+        version: v1
+        kind: Ingress
+      - group: networking.k8s.io
+        version: v1
+        kind: NetworkPolicy
+      - group: apps/v1
+        version: v1
+        kind: Deployment
+      - group: policy/v1
+        version: v1
+        kind: PodDisruptionBudget
+
+  # Hard webhook exemptions. Note these are FULLY exempt from admission — they do
+  # NOT show up in audit either. Keep this list as short as possible; prefer
+  # per-constraint excludedNamespaces for everything else.
+  match:
+    - excludedNamespaces:
+        - kube-system        # CNI, CoreDNS, kube-proxy — must never be blocked
+        - gatekeeper-system  # don't let Gatekeeper block its own control plane
+      processes: ["*"]       # "*" = both "sync" (audit cache) and "webhook"

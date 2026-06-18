@@ -1,0 +1,18 @@
+# The namespace that hosts the ArgoCD control plane.
+# Created here (not via the root app) because ArgoCD must exist before it can manage anything.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+  labels:
+    app.kubernetes.io/name: argocd
+    app.kubernetes.io/part-of: argocd
+    # Pod Security Admission: the control plane needs a slightly relaxed baseline
+    # (repo-server uses an init container that writes to the filesystem). "restricted"
+    # breaks some upstream components, so we enforce "baseline" and audit "restricted".
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    # Project tags (kebab-case labels mirroring the Terraform tag convention).
+    project: my-project
+    managed-by: argocd

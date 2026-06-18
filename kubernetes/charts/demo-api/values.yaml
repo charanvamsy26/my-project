@@ -1,0 +1,226 @@
+# Default values for the demo-api chart.
+# These are the safe, sensible baseline. Environment overlays live in
+# values-dev.yaml and values-prod.yaml and only override what differs.
+# Every value below is documented in README.md.
+
+# -- Number of replicas when autoscaling is disabled. With the HPA enabled this
+# is only the initial replica count.
+replicaCount: 2
+
+image:
+  # -- Container image repository. We always publish to GHCR.
+  repository: ghcr.io/charanvamsy/demo-api
+  # -- Image pull policy. IfNotPresent is correct because we use immutable,
+  # versioned tags (never :latest).
+  pullPolicy: IfNotPresent
+  # -- Image tag. Defaults to the chart's appVersion when left empty so the
+  # chart is usable out of the box; CI/CD should set this explicitly per release.
+  tag: ""
+
+# -- Secrets used to pull the image (e.g. a GHCR PAT). Empty for public images.
+imagePullSecrets: []
+# -- Override the chart name used in resource names.
+nameOverride: ""
+# -- Fully override the generated fullname (resource name prefix).
+fullnameOverride: ""
+
+serviceAccount:
+  # -- Create a dedicated ServiceAccount (recommended; least privilege).
+  create: true
+  # -- Extra annotations. For IRSA, set eks.amazonaws.com/role-arn here.
+  annotations: {}
+  # -- Name to use. Generated from the fullname when empty.
+  name: ""
+  # -- Whether the SA token is auto-mounted. demo-api needs no API access, so we
+  # default this off to shrink the attack surface.
+  automountServiceAccountToken: false
+
+# -- Annotations added to every pod. The Prometheus scrape annotations are here
+# as a fallback for cluster-wide annotation-based scraping; the primary path is
+# the ServiceMonitor below.
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8000"
+  prometheus.io/path: "/metrics"
+
+# -- Extra labels added to every pod (merged with the standard labels).
+podLabels: {}
+
+# -- Pod-level security context. Enforces non-root and a hardened seccomp profile.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- Container-level security context. readOnlyRootFilesystem + drop ALL caps +
+# no privilege escalation. The app writes nothing to disk; gunicorn uses /tmp
+# (mounted as an emptyDir below).
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 10001
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  # -- Service type. ClusterIP because external access goes through the ALB.
+  type: ClusterIP
+  # -- Service port exposed to the cluster.
+  port: 80
+  # -- Container port the Service targets (matches the app + Dockerfile).
+  targetPort: 8000
+  # -- Extra Service annotations.
+  annotations: {}
+
+ingress:
+  # -- Enable the ALB Ingress (AWS Load Balancer Controller).
+  enabled: true
+  # -- IngressClass name handled by the AWS Load Balancer Controller.
+  className: alb
+  # -- Public hostname (placeholder domain).
+  host: demo-api.example.com
+  # -- HTTP path and matching style.
+  path: /
+  pathType: Prefix
+  # ALB controller annotations. These produce an internet-facing, IP-target ALB
+  # that redirects HTTP->HTTPS and terminates TLS with an ACM certificate.
+  # Replace <ACM_CERTIFICATE_ARN> with a real cert ARN (documented in README).
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/success-codes: "200"
+    alb.ingress.kubernetes.io/tags: Project=my-project,ManagedBy=terraform
+    # -- ACM certificate ARN for HTTPS. Must be set for the HTTPS listener.
+    alb.ingress.kubernetes.io/certificate-arn: "<ACM_CERTIFICATE_ARN>"
+  # -- Optional extra TLS config (usually unnecessary with ACM on the ALB).
+  tls: []
+
+# -- Resource requests/limits. Requests drive scheduling/HPA; limits cap usage.
+# CPU limit is intentionally omitted by default (set in prod overlay) to avoid
+# CFS throttling on a latency-sensitive service while still capping memory.
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 256Mi
+
+autoscaling:
+  # -- Enable the HorizontalPodAutoscaler.
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  # -- Target average CPU utilization (% of request) that triggers scaling.
+  targetCPUUtilizationPercentage: 70
+  # -- Target average memory utilization (% of request). Null disables.
+  targetMemoryUtilizationPercentage: null
+
+# Liveness/readiness probes. Paths match the app's endpoints.
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 3
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 3
+# -- Startup probe gives slow starts headroom before liveness kicks in.
+startupProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  periodSeconds: 5
+  failureThreshold: 12 # up to ~60s to become live
+
+# -- Application environment variables rendered into the ConfigMap.
+config:
+  APP_NAME: demo-api
+  LOG_LEVEL: INFO
+  DB_CONNECT_TIMEOUT: "2"
+
+# -- Optional DATABASE_URL. Leave empty for stateless mode. For real secrets,
+# prefer an existingSecret (below) over inlining the DSN here.
+databaseUrl: ""
+# -- Name of an existing Secret holding a DATABASE_URL key. Takes precedence
+# over databaseUrl when set.
+databaseUrlExistingSecret: ""
+
+serviceMonitor:
+  # -- Create a Prometheus Operator ServiceMonitor (kube-prometheus-stack).
+  enabled: true
+  # -- Scrape interval and timeout.
+  interval: 30s
+  scrapeTimeout: 10s
+  path: /metrics
+  # -- Extra labels. kube-prometheus-stack selects ServiceMonitors with
+  # `release: <stack-release>`; set it to match your install (e.g. kube-prometheus-stack).
+  labels:
+    release: kube-prometheus-stack
+
+podDisruptionBudget:
+  # -- Create a PDB to protect availability during voluntary disruptions.
+  enabled: true
+  # -- Minimum pods that must stay available. Use one of minAvailable/maxUnavailable.
+  minAvailable: 1
+  maxUnavailable: null
+
+networkPolicy:
+  # -- Create a default-deny-ingress NetworkPolicy with explicit allows.
+  enabled: true
+  # -- Allow scrape traffic from the monitoring namespace to the metrics port.
+  allowMonitoringNamespace: true
+  # -- Namespace label selector value for the monitoring namespace.
+  monitoringNamespaceLabel: monitoring
+  # -- Allow ingress controller traffic. The ALB targets pods directly (IP
+  # target mode) from outside the cluster, so by default we allow ingress to the
+  # app port from anywhere within the VPC/cluster CIDR via the controller.
+  allowIngressController: true
+
+# -- Spread pods across zones and nodes for resilience. DoNotSchedule on zones
+# enforces multi-AZ spread; ScheduleAnyway on hostname is a soft preference.
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels: {} # filled from selector labels by the template
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels: {}
+
+# -- Node selection / scheduling controls.
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# -- Extra volumes/volumeMounts beyond the defaults. The chart always adds a
+# writable /tmp emptyDir because readOnlyRootFilesystem is true.
+extraVolumes: []
+extraVolumeMounts: []
+
+# -- Standard labels applied to all resources, aligned with the project SPEC.
+# Environment is overridden per overlay.
+commonLabels:
+  app.kubernetes.io/part-of: my-project
+  project: my-project
+  managed-by: helm
+environment: dev

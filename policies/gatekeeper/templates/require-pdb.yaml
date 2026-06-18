@@ -1,0 +1,80 @@
+# ConstraintTemplate: K8sRequirePDB  (OPTIONAL — ships as dryrun)
+# Requires every multi-replica Deployment to be covered by a PodDisruptionBudget
+# (PDB) whose selector matches the Deployment's pod template labels.
+#
+# WHY: a PDB caps voluntary disruptions (node drains during cluster upgrades, spot
+# reclaims, kubectl drain). Without one, a single drain can evict every replica of a
+# service at once -> a self-inflicted outage during routine maintenance.
+#
+# CROSS-OBJECT: this rule reads PodDisruptionBudget objects from OPA's cache, so the
+# Gatekeeper Config MUST sync policy/v1 PodDisruptionBudget (it does — see
+# install/config.yaml). Cross-object admission has a race (a PDB applied in the same
+# batch may not yet be cached), which is one reason this constraint runs in dryrun.
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8srequirepdb
+  labels:
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: policy
+  annotations:
+    description: >-
+      Requires multi-replica Deployments to be covered by a matching
+      PodDisruptionBudget. Optional; runs in dryrun.
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sRequirePDB
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            minReplicas:
+              type: integer
+              description: >-
+                Only require a PDB when the Deployment has at least this many
+                replicas (default 2 — a single-replica Deployment can't be HA).
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8srequirepdb
+
+        import future.keywords.contains
+        import future.keywords.if
+        import future.keywords.in
+
+        min_replicas := n if {
+            n := input.parameters.minReplicas
+            n > 0
+        } else := 2
+
+        replicas := object.get(input.review.object.spec, "replicas", 1)
+        namespace := input.review.object.metadata.namespace
+        pod_labels := object.get(input.review.object.spec.template.metadata, "labels", {})
+
+        violation contains {"msg": msg} if {
+            replicas >= min_replicas
+            not covered_by_pdb
+            msg := sprintf(
+                "Deployment <%v> has %v replicas but no PodDisruptionBudget selecting its pods",
+                [input.review.object.metadata.name, replicas],
+            )
+        }
+
+        # True if some cached PDB in the same namespace selects this Deployment's
+        # pods (its matchLabels are a subset of the pod template labels).
+        covered_by_pdb if {
+            some pdb in data.inventory.namespace[namespace]["policy/v1"]["PodDisruptionBudget"]
+            selector := object.get(pdb.spec, "selector", {})
+            match_labels := object.get(selector, "matchLabels", {})
+            count(match_labels) > 0
+            labels_subset(match_labels, pod_labels)
+        }
+
+        # Every key/value in `wanted` is present with the same value in `have`.
+        labels_subset(wanted, have) if {
+            every k, v in wanted {
+                have[k] == v
+            }
+        }

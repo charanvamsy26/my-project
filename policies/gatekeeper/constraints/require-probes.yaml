@@ -1,0 +1,34 @@
+# Constraint: require liveness + readiness probes on app containers.
+# enforcementAction: dryrun  -> flip to deny once the fleet is clean.
+#
+# WHY dryrun first: probes are the rule that most often surfaces legacy workloads
+# (Jobs, one-off tools, older charts) that legitimately have no probes. We start in
+# dryrun to measure blast radius via audit, fix/exempt offenders, then promote to
+# deny. demo-api ALREADY complies: its chart sets a livenessProbe (GET /healthz:8000)
+# and readinessProbe (GET /readyz:8000), so it will pass cleanly when promoted.
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequireProbes
+metadata:
+  name: require-liveness-readiness-probes
+  labels:
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: policy
+  annotations:
+    # Promotion checklist tracked here so reviewers know the rollout intent.
+    policy.my-project.io/promotion: "dryrun -> deny once audit totalViolations == 0 in dev+prod"
+spec:
+  enforcementAction: dryrun
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    excludedNamespaces:
+      - kube-system
+      - gatekeeper-system
+      - monitoring
+      - kube-node-lease
+      - kube-public
+  parameters:
+    probes:
+      - livenessProbe
+      - readinessProbe

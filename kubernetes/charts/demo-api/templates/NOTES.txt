@@ -1,0 +1,42 @@
+demo-api has been deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+Environment : {{ .Values.environment }}
+Image       : {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
+Replicas    : {{ if .Values.autoscaling.enabled }}autoscaled {{ .Values.autoscaling.minReplicas }}-{{ .Values.autoscaling.maxReplicas }}{{ else }}{{ .Values.replicaCount }}{{ end }}
+
+1. Check rollout status:
+
+   kubectl -n {{ .Release.Namespace }} rollout status deployment/{{ include "demo-api.fullname" . }}
+
+2. Reach the service from inside the cluster:
+
+   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "demo-api.fullname" . }} 8080:{{ .Values.service.port }}
+   # then:
+   curl localhost:8080/         # hello
+   curl localhost:8080/healthz  # liveness
+   curl localhost:8080/readyz   # readiness
+   curl localhost:8080/metrics  # prometheus metrics
+
+{{- if .Values.ingress.enabled }}
+
+3. External access (via the AWS Load Balancer Controller / ALB):
+
+   Host: https://{{ .Values.ingress.host }}{{ .Values.ingress.path }}
+
+   The ALB may take a couple of minutes to provision. Watch its address:
+
+   kubectl -n {{ .Release.Namespace }} get ingress {{ include "demo-api.fullname" . }} -w
+
+   NOTE: ensure the Ingress annotation
+   alb.ingress.kubernetes.io/certificate-arn is set to a real ACM cert ARN,
+   and that {{ .Values.ingress.host }} resolves (Route53) to the ALB.
+{{- end }}
+
+{{- if .Values.serviceMonitor.enabled }}
+
+4. Metrics are scraped by the Prometheus Operator via a ServiceMonitor. Confirm
+   Prometheus selects it (the selector label `release` must match your
+   kube-prometheus-stack release):
+
+   kubectl -n {{ .Release.Namespace }} get servicemonitor {{ include "demo-api.fullname" . }} --show-labels
+{{- end }}

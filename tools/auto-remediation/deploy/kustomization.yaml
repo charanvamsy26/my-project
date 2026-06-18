@@ -1,0 +1,36 @@
+# Kustomize entrypoint for the auto-remediation controller.
+#
+# Apply with:
+#   kubectl apply -k tools/auto-remediation/deploy/
+# or render for review / Argo CD:
+#   kustomize build tools/auto-remediation/deploy/
+#
+# Resources span TWO namespaces by design:
+#   * sre-tools : Namespace, ServiceAccount, Deployment (the controller)
+#   * demo      : Role + RoleBinding (least-privilege grant on demo-api)
+# so commonLabels are applied per-resource via each manifest rather than forced
+# here (kustomize namespace: would otherwise rewrite the demo-scoped RBAC).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: auto-remediation
+
+# Ownership labels added to every resource (complements the per-file labels).
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: my-project
+      project: my-project
+
+resources:
+  - namespace.yaml
+  - serviceaccount.yaml
+  - role.yaml
+  - rolebinding.yaml
+  - deployment.yaml
+
+images:
+  # Single source of truth for the image tag — bump here on release.
+  - name: ghcr.io/charanvamsy/auto-remediation
+    newTag: "0.1.0"

@@ -1,0 +1,77 @@
+# ConstraintTemplate: K8sRequireResources
+# Requires every (init + app) container to declare resource requests AND limits for
+# the configured resource names (default: cpu, memory).
+#
+# WHY: without requests the scheduler cannot bin-pack and the Pod gets BestEffort
+# QoS — first to be OOM-killed under pressure. Without limits a single container can
+# starve its node ("noisy neighbour") and bypass cluster autoscaler signals. Memory
+# limits in particular bound the blast radius of a leak.
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8srequireresources
+  labels:
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: policy
+  annotations:
+    description: >-
+      Requires containers to set resource requests and limits for the given
+      resource names (default cpu + memory).
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sRequireResources
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            resources:
+              type: array
+              description: >-
+                Resource names that must have both a request and a limit.
+                Defaults to cpu + memory if omitted.
+              items:
+                type: string
+            exemptImages:
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8srequireresources
+
+        import future.keywords.contains
+        import future.keywords.if
+        import future.keywords.in
+
+        # Default to cpu + memory when the constraint does not override.
+        required_resources := r if {
+            r := input.parameters.resources
+            count(r) > 0
+        } else := ["cpu", "memory"]
+
+        all_containers contains container if {
+            some container in input.review.object.spec.containers
+        }
+
+        all_containers contains container if {
+            some container in input.review.object.spec.initContainers
+        }
+
+        # Missing request.
+        violation contains {"msg": msg} if {
+            some container in all_containers
+            some res in required_resources
+            not container.resources.requests[res]
+            msg := sprintf("container <%v> is missing a resource REQUEST for <%v>", [container.name, res])
+        }
+
+        # Missing limit.
+        violation contains {"msg": msg} if {
+            some container in all_containers
+            some res in required_resources
+            not container.resources.limits[res]
+            msg := sprintf("container <%v> is missing a resource LIMIT for <%v>", [container.name, res])
+        }

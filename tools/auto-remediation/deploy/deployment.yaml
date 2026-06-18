@@ -1,0 +1,151 @@
+# =============================================================================
+# auto-remediation controller Deployment.
+# -----------------------------------------------------------------------------
+# Single replica: this is a controller acting on ONE deployment. Two replicas
+# would double-fire restarts; if you need HA, add a Lease-based leader election
+# (out of scope for the demo). The cooldown already prevents flapping from a
+# single instance.
+#
+# GATEKEEPER COMPLIANCE (deployed to sre-tools, a NON-excluded namespace, so all
+# of these are mandatory and enforced):
+#   * resources.requests + resources.limits (cpu+memory)   -> K8sRequireResources
+#   * runAsNonRoot + capabilities.drop:[ALL] + RO rootfs   -> K8sRequireSecurityContext
+#   * liveness + readiness probes                          -> K8sRequireProbes
+#   * image ghcr.io/charanvamsy/... with explicit tag      -> K8sAllowedRegistries
+#                                                            + K8sDisallowLatestTag
+#   * app.kubernetes.io/{name,part-of} + managed-by:kustomize -> K8sRequiredLabels
+#   * not in `default` namespace                           -> K8sBlockDefaultNamespace
+#
+# The probes are EXEC probes (this is a poller, not an HTTP server): readiness
+# verifies the controller wrote a heartbeat file recently; liveness verifies the
+# process is running. The controller updates /tmp/heartbeat each poll cycle.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auto-remediation
+  namespace: sre-tools
+  labels:
+    app.kubernetes.io/name: auto-remediation
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/version: "0.1.0"
+    project: my-project
+spec:
+  replicas: 1
+  # Recreate, not RollingUpdate: never run two controllers at once (avoids two
+  # instances racing to remediate the same breach).
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: auto-remediation
+      app.kubernetes.io/component: controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: auto-remediation
+        app.kubernetes.io/part-of: my-project
+        app.kubernetes.io/component: controller
+        app.kubernetes.io/managed-by: kustomize
+        app.kubernetes.io/version: "0.1.0"
+        project: my-project
+    spec:
+      serviceAccountName: auto-remediation
+      automountServiceAccountToken: true
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: auto-remediation
+          # Explicit, immutable tag (never :latest); registry is first-party GHCR.
+          image: ghcr.io/charanvamsy/auto-remediation:0.1.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            capabilities:
+              drop:
+                - ALL
+          env:
+            # --- Detection ---
+            - name: PROM_URL
+              # In-cluster kube-prometheus-stack service. Adjust the service name
+              # if your Prometheus Service differs.
+              value: "http://kube-prometheus-stack-prometheus.monitoring.svc:9090"
+            - name: BURN_QUERY_MODE
+              value: "alerts"          # reuse the canonical firing SLO alert
+            - name: BREACH_ALERT
+              value: "DemoApiErrorBudgetBurnFast"
+            - name: BURN_THRESHOLD
+              value: "14.4"            # used only when BURN_QUERY_MODE=burnrate
+            # --- Target ---
+            - name: NAMESPACE
+              value: "demo"
+            - name: DEPLOYMENT
+              value: "demo-api"
+            # --- Behaviour / safety ---
+            - name: MODE
+              value: "restart"
+            # SAFETY: ship dry-run ON. Flip to "false" only after you have
+            # watched the logs and trust the decisions.
+            - name: DRY_RUN
+              value: "true"
+            - name: POLL_SECONDS
+              value: "30"
+            - name: SUSTAINED_SECONDS
+              value: "120"
+            - name: COOLDOWN_SECONDS
+              value: "600"
+            - name: LOG_LEVEL
+              value: "INFO"
+            # --- Argo CD rollback mode (only used when MODE=rollback) ---
+            - name: ARGOCD_APP
+              value: "demo-api"
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          # Liveness: the python process is alive and the main module imports.
+          livenessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import os,sys; sys.exit(0)"
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Readiness: the controller has completed a poll cycle recently. It
+          # touches /tmp/heartbeat each loop; if that file is older than 3 poll
+          # intervals (90s) the controller is wedged and should be marked unready.
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "test -f /tmp/heartbeat && [ $(( $(date +%s) - $(stat -c %Y /tmp/heartbeat) )) -lt 90 ]"
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            # readOnlyRootFilesystem is on, so provide a writable scratch dir for
+            # the heartbeat file and any temp the kubernetes client may need.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

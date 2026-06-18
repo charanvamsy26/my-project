@@ -1,0 +1,56 @@
+# =============================================================================
+# Least-privilege Role for the auto-remediation controller.
+# -----------------------------------------------------------------------------
+# This Role lives in the `demo` namespace (where demo-api runs), NOT in the
+# controller's own `sre-tools` namespace, because RBAC is evaluated against the
+# namespace of the object being acted on. The RoleBinding (rolebinding.yaml)
+# then binds the sre-tools ServiceAccount into this demo-namespace Role
+# (cross-namespace subject -> role is fully supported).
+#
+# EXACT VERBS GRANTED (and why each is needed):
+#
+#   apps/deployments        get    -> read the current deployment (existence /
+#                                      sanity before acting; the k8s client's
+#                                      patch path also reads).
+#   apps/deployments        patch  -> the rolling restart itself. `kubectl rollout
+#                                      restart` is implemented as a strategic-merge
+#                                      PATCH that stamps
+#                                      spec.template.metadata.annotations
+#                                      (kubectl.kubernetes.io/restartedAt). Our
+#                                      kubernetes-client path does the same patch.
+#   apps/deployments/rollout  create -> covers the explicit "rollout" subresource
+#                                      verb for clusters/tools that route the
+#                                      restart through it. Harmless if unused.
+#
+# Intentionally NOT granted (blast-radius minimisation):
+#   * no  list/watch         (we act on ONE named deployment, never enumerate)
+#   * no  delete             (we never delete the deployment or its pods)
+#   * no  create/patch on    pods, replicasets, secrets, configmaps, etc.
+#   * no  cluster-scope      (Role, not ClusterRole)
+#   * no  access to any other namespace
+#
+# resourceNames pins the grant to the single target deployment so even within
+# `demo` the controller cannot touch any other workload.
+# =============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: auto-remediation-restart
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: auto-remediation
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/managed-by: kustomize
+    project: my-project
+rules:
+  # get + patch on the single demo-api deployment.
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["demo-api"]
+    verbs: ["get", "patch"]
+  # create on the deployments/rollout subresource (explicit rollout path).
+  - apiGroups: ["apps"]
+    resources: ["deployments/rollout"]
+    resourceNames: ["demo-api"]
+    verbs: ["create"]

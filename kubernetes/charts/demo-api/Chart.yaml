@@ -1,0 +1,34 @@
+apiVersion: v2
+name: demo-api
+description: >-
+  Helm chart for demo-api, the reference Flask workload of the my-project
+  platform. Renders a hardened Deployment plus Service, ServiceAccount, ALB
+  Ingress, HPA, ConfigMap, ServiceMonitor, PodDisruptionBudget and
+  NetworkPolicy.
+type: application
+
+# chart version: bumped on chart changes (templates/values).
+version: 0.1.0
+# appVersion: the demo-api application release this chart defaults to. Keep in
+# sync with the default image tag in values.yaml.
+appVersion: "0.1.0"
+
+kubeVersion: ">=1.30.0-0"
+
+home: https://github.com/charanvamsy/my-project
+sources:
+  - https://github.com/charanvamsy/my-project
+
+keywords:
+  - flask
+  - demo
+  - reference
+  - prometheus
+
+maintainers:
+  - name: charanvamsy
+    url: https://github.com/charanvamsy
+
+annotations:
+  # Surfaced by ArgoCD / chart UIs.
+  category: ApplicationServer

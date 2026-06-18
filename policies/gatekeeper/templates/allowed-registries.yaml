@@ -1,0 +1,78 @@
+# ConstraintTemplate: K8sAllowedRegistries
+# Every container image must start with one of the allowed registry prefixes.
+# my-project pulls only from:
+#   - ghcr.io/charanvamsy/...        (first-party images, built in CI)
+#   - <account_id>.dkr.ecr.us-east-1.amazonaws.com/...  (mirrored / private images)
+#
+# WHY: pinning the registry blocks typosquatting and supply-chain attacks via
+# arbitrary public images (docker.io/<anything>), and ensures every image flows
+# through a registry we scan and control. The allowed list is a parameter so dev
+# and prod can differ if needed.
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8sallowedregistries
+  labels:
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: policy
+  annotations:
+    description: >-
+      Requires all container images to come from an allowed registry prefix.
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sAllowedRegistries
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            registries:
+              type: array
+              description: Allowed registry/repository prefixes.
+              items:
+                type: string
+            exemptImages:
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8sallowedregistries
+
+        import future.keywords.contains
+        import future.keywords.if
+        import future.keywords.in
+
+        all_containers contains c if {
+            some c in input.review.object.spec.containers
+        }
+
+        all_containers contains c if {
+            some c in input.review.object.spec.initContainers
+        }
+
+        all_containers contains c if {
+            some c in input.review.object.spec.ephemeralContainers
+        }
+
+        violation contains {"msg": msg} if {
+            some c in all_containers
+            not exempt(c.image)
+            not from_allowed_registry(c.image)
+            msg := sprintf(
+                "container <%v> image <%v> is not from an allowed registry: %v",
+                [c.name, c.image, object.get(input.parameters, "registries", [])],
+            )
+        }
+
+        from_allowed_registry(image) if {
+            some allowed in input.parameters.registries
+            startswith(image, allowed)
+        }
+
+        exempt(image) if {
+            some pattern in object.get(input.parameters, "exemptImages", [])
+            startswith(image, trim_suffix(pattern, "*"))
+        }

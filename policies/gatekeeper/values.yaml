@@ -1,0 +1,87 @@
+# =============================================================================
+# OPA Gatekeeper — Helm values for my-project
+# -----------------------------------------------------------------------------
+# Chart : open-policy-agent/gatekeeper (pinned in the ArgoCD Application)
+# Target: EKS my-project-{dev,prod} (k8s 1.30), namespace `gatekeeper-system`.
+#
+# This is the *engine* config consumed via the multi-source ArgoCD Application
+# (argocd/apps/gatekeeper.yaml -> $values/policies/gatekeeper/values.yaml).
+# The ConstraintTemplates and Constraints (the actual policies) and the cluster
+# Config singleton live alongside this file under policies/gatekeeper/ and are
+# delivered separately. Keep this file focused on how the controller runs.
+# =============================================================================
+
+# Run the namespace as a pre-existing, labelled namespace (created in
+# kubernetes/namespaces/gatekeeper-system.yaml); don't let the chart relabel it.
+namespace: gatekeeper-system
+
+# Replicas for the validating webhook (controller-manager) — keep >1 for HA so an
+# admission decision is always available; the deployment leader-elects for audit.
+replicas: 3
+
+# The audit controller scans existing objects and writes violations to each
+# constraint's status. 60s matches what policies/README.md documents.
+audit:
+  replicas: 1
+  auditInterval: 60
+  constraintViolationsLimit: 100
+  auditFromCache: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+
+controllerManager:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+  # Spread webhook replicas across AZs so a single-AZ outage can't fail admission.
+  podAntiAffinity: true
+
+# --- Fail mode -------------------------------------------------------------- #
+# Fail the webhook *open* (Ignore) only for namespaces we trust; deny-by-default
+# admission already excludes system namespaces via the Config singleton. Keep the
+# webhook failure policy strict so a bypass can't slip a non-compliant Pod in.
+validatingWebhookFailurePolicy: Fail
+validatingWebhookTimeoutSeconds: 3
+
+# Don't let Gatekeeper evaluate its own and core system namespaces (defense in
+# depth alongside policies/gatekeeper/install/config.yaml).
+exemptNamespaces:
+  - kube-system
+  - gatekeeper-system
+
+# --- Hardened pod security (satisfies the restricted PSS baseline) ---------- #
+podSecurityPolicy:
+  enabled: false   # PSP is removed in k8s 1.25+; PSA + securityContext below cover us
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 999
+  fsGroup: 999
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  seccompProfile:
+    type: RuntimeDefault
+  capabilities:
+    drop:
+      - ALL
+
+# Emit controller + audit metrics so kube-prometheus-stack can scrape them.
+# The ServiceMonitor carries the discovery label (release: kube-prometheus-stack).
+enableMetrics: true
+metricsBackends:
+  - prometheus
+
+# Standard project labels stamped on chart-managed objects.
+podLabels:
+  app.kubernetes.io/part-of: my-project
+  app.kubernetes.io/component: policy

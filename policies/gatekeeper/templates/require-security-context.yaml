@@ -1,0 +1,91 @@
+# ConstraintTemplate: K8sRequireSecurityContext
+# Hardens Pod/container security context. Requires:
+#   - runAsNonRoot: true   (at Pod level or on every container)
+#   - capabilities.drop includes "ALL"   (on every container)
+#   - allowPrivilegeEscalation: false    (on every container)
+#   - privileged containers are rejected
+#
+# WHY: a container running as UID 0 with default Linux capabilities is one
+# container-escape CVE away from node root. Dropping ALL caps + nonRoot + no
+# privilege escalation is the baseline of the Kubernetes "restricted" Pod Security
+# Standard; this constraint enforces it as policy so it cannot be silently dropped.
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8srequiresecuritycontext
+  labels:
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: policy
+  annotations:
+    description: >-
+      Requires runAsNonRoot, drop ALL capabilities, no privilege escalation, and
+      forbids privileged containers.
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sRequireSecurityContext
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            exemptImages:
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8srequiresecuritycontext
+
+        import future.keywords.contains
+        import future.keywords.if
+        import future.keywords.in
+
+        pod_security_context := object.get(input.review.object.spec, "securityContext", {})
+
+        all_containers contains c if {
+            some c in input.review.object.spec.containers
+        }
+
+        all_containers contains c if {
+            some c in input.review.object.spec.initContainers
+        }
+
+        # --- runAsNonRoot -----------------------------------------------------
+        # Satisfied if set true at the Pod level OR on the container itself.
+        pod_runs_as_non_root if pod_security_context.runAsNonRoot == true
+
+        runs_as_non_root(c) if object.get(c, ["securityContext", "runAsNonRoot"], false) == true
+        runs_as_non_root(_) if pod_runs_as_non_root
+
+        violation contains {"msg": msg} if {
+            some c in all_containers
+            not runs_as_non_root(c)
+            msg := sprintf("container <%v> must set runAsNonRoot=true (at pod or container level)", [c.name])
+        }
+
+        # --- drop ALL capabilities -------------------------------------------
+        violation contains {"msg": msg} if {
+            some c in all_containers
+            dropped := {cap | some cap in object.get(c, ["securityContext", "capabilities", "drop"], [])}
+            not has_drop_all(dropped)
+            msg := sprintf("container <%v> must drop ALL capabilities (securityContext.capabilities.drop: [ALL])", [c.name])
+        }
+
+        has_drop_all(dropped) if "ALL" in dropped
+        has_drop_all(dropped) if "all" in dropped
+
+        # --- allowPrivilegeEscalation: false ---------------------------------
+        violation contains {"msg": msg} if {
+            some c in all_containers
+            object.get(c, ["securityContext", "allowPrivilegeEscalation"], true) != false
+            msg := sprintf("container <%v> must set allowPrivilegeEscalation=false", [c.name])
+        }
+
+        # --- no privileged containers ----------------------------------------
+        violation contains {"msg": msg} if {
+            some c in all_containers
+            object.get(c, ["securityContext", "privileged"], false) == true
+            msg := sprintf("container <%v> must not run privileged", [c.name])
+        }

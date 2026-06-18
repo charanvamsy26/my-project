@@ -1,0 +1,36 @@
+# Constraint: only allow images from ghcr.io (first-party) + our ECR (mirrors).
+# enforcementAction: deny  (supply-chain: arbitrary public images are forbidden)
+#
+# demo-api uses ghcr.io/charanvamsy/demo-api:<tag> -> matches the "ghcr.io/charanvamsy/"
+# prefix, so it complies. Replace <account_id> below with the AWS account id (or
+# template it via Kustomize/Helm/Argo) — it is the only environment-specific value.
+#
+# NOTE: monitoring is excluded because kube-prometheus-stack pulls upstream images
+# (quay.io/prometheus/..., docker.io/grafana/...). If you mirror those into ECR you
+# can drop the exclusion and tighten this to ALL namespaces.
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sAllowedRegistries
+metadata:
+  name: allowed-image-registries
+  labels:
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: policy
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    excludedNamespaces:
+      - kube-system
+      - gatekeeper-system
+      - monitoring          # upstream observability images (quay.io/docker.io)
+      - kube-node-lease
+      - kube-public
+  parameters:
+    registries:
+      # First-party images built by GitHub Actions in the charanvamsy org.
+      - "ghcr.io/charanvamsy/"
+      # Private ECR in us-east-1. <account_id> is the AWS account number.
+      - "<account_id>.dkr.ecr.us-east-1.amazonaws.com/"
+    exemptImages: []

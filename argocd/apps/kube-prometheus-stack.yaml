@@ -1,0 +1,79 @@
+# Observability: kube-prometheus-stack (Prometheus + Alertmanager + Grafana).
+#
+# Wave 0 — installs before the workload so that:
+#   - the ServiceMonitor / PrometheusRule CRDs exist before demo-api ships its ServiceMonitor,
+#   - Grafana dashboards/datasources are ready when metrics start flowing.
+#
+# Multi-source Application: the chart comes from the prometheus-community Helm repo (pinned),
+# but the *values* live in our Git repo under observability/ so dashboards, alert rules, and
+# scrape config are reviewed alongside the rest of the platform.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  labels:
+    project: my-project
+    managed-by: argocd
+    component: observability
+spec:
+  project: my-project
+
+  sources:
+    # 1) The chart from the upstream Helm repo, version-pinned (never "latest").
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 65.5.1   # chart version pin; bump deliberately via PR
+      helm:
+        releaseName: kube-prometheus-stack
+        # Values tracked in Git (see source #2). $values resolves to that repo's checkout.
+        valueFiles:
+          - $values/observability/kube-prometheus-stack/values.yaml
+    # 2) Our repo, only to expose observability/ as $values to the chart above.
+    - repoURL: https://github.com/charanvamsy/my-project.git
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      # The kube-prometheus-stack CRDs are huge — client-side apply blows the 1MB annotation
+      # limit, so use server-side apply and replace CRDs in place on upgrades.
+      - ServerSideApply=true
+      - ServerSideDiff=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  ignoreDifferences:
+    # The operator's admission webhook gets its CA injected at runtime; Git can't know it.
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: kube-prometheus-stack-admission
+      jqPathExpressions:
+        - '.webhooks[]?.clientConfig.caBundle'
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      name: kube-prometheus-stack-admission
+      jqPathExpressions:
+        - '.webhooks[]?.clientConfig.caBundle'
+    # Grafana sidecar relabels/mutates its own deployment env; ignore controller-managed churn.
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas

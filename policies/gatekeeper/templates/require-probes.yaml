@@ -1,0 +1,68 @@
+# ConstraintTemplate: K8sRequireProbes
+# Requires every app container to declare the configured probes (default:
+# livenessProbe + readinessProbe). initContainers are intentionally exempt — they
+# are not long-running and probes do not apply to them.
+#
+# WHY: without a readinessProbe, a Pod receives traffic before it can serve it
+# (failed rollouts, 502s during deploys). Without a livenessProbe, a wedged process
+# stays "Running" forever instead of being restarted. Both are required for safe,
+# zero-downtime rollouts behind the ALB.
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8srequireprobes
+  labels:
+    app.kubernetes.io/part-of: my-project
+    app.kubernetes.io/component: policy
+  annotations:
+    description: >-
+      Requires app containers to define the listed probes (default liveness +
+      readiness).
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sRequireProbes
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            probes:
+              type: array
+              description: >-
+                Probe field names that must be present on each container.
+                Defaults to livenessProbe + readinessProbe.
+              items:
+                type: string
+            exemptImages:
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8srequireprobes
+
+        import future.keywords.contains
+        import future.keywords.if
+        import future.keywords.in
+
+        required_probes := p if {
+            p := input.parameters.probes
+            count(p) > 0
+        } else := ["livenessProbe", "readinessProbe"]
+
+        # Only app containers — initContainers / ephemeral don't take probes.
+        violation contains {"msg": msg} if {
+            some c in input.review.object.spec.containers
+            some probe in required_probes
+            not has_probe(c, probe)
+            msg := sprintf("container <%v> is missing a <%v>", [c.name, probe])
+        }
+
+        # A probe "exists" only if it is a non-empty object (an empty {} probe is
+        # invalid and provides no health signal).
+        has_probe(container, probe) if {
+            p := container[probe]
+            count(p) > 0
+        }

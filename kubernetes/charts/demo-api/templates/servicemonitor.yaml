@@ -1,0 +1,30 @@
+{{- if .Values.serviceMonitor.enabled -}}
+{{- /*
+ServiceMonitor for the Prometheus Operator (kube-prometheus-stack). Prometheus
+selects ServiceMonitors by label (commonly release=<stack-release>); set
+serviceMonitor.labels.release accordingly. This is the primary scrape path; the
+pod/service prometheus.io annotations are a fallback for annotation-based setups.
+*/ -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "demo-api.fullname" . }}
+  labels:
+    {{- include "demo-api.labels" . | nindent 4 }}
+    {{- with .Values.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "demo-api.selectorLabels" . | nindent 6 }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  endpoints:
+    - port: http # named port on the Service
+      path: {{ .Values.serviceMonitor.path }}
+      interval: {{ .Values.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+      scheme: http
+{{- end }}

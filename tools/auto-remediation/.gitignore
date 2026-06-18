@@ -1,0 +1,7 @@
+# Python / pytest artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+.venv/
+venv/

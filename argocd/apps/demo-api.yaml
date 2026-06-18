@@ -1,0 +1,68 @@
+# Workload: demo-api (the small Python/Flask sample service).
+#
+# Wave 2 — installs LAST, after observability (wave 0), policy (wave 0), and ingress (wave 1) are
+# Healthy, so that:
+#   - its ServiceMonitor has CRDs to register against (Prometheus),
+#   - its pods pass Gatekeeper admission,
+#   - its Ingress can provision an ALB via the AWS Load Balancer Controller.
+#
+# The chart is local to this repo (kubernetes/charts/demo-api). Per-env values files live in the
+# chart so the same chart serves dev and prod. This Application targets the DEV environment; the
+# prod Application is the same file with `values-prod.yaml` and the prod cluster name — see README.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: demo-api
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    project: my-project
+    managed-by: argocd
+    component: workload
+    environment: dev
+spec:
+  project: my-project
+
+  source:
+    repoURL: https://github.com/charanvamsy/my-project.git
+    targetRevision: main
+    # Local Helm chart for the Flask service (image ghcr.io/charanvamsy/demo-api:<tag>, port 8000,
+    # /healthz /readyz / /metrics). Pinned image tags live in the values file — never :latest.
+    path: kubernetes/charts/demo-api
+    helm:
+      releaseName: demo-api
+      valueFiles:
+        - values.yaml        # chart defaults
+        - values-dev.yaml    # dev overrides (CHANGE to values-prod.yaml for the prod Application)
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: demo
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      # Keep the demo namespace labelled for PSA + project tagging when ArgoCD creates it.
+      - "PruneLast=true"   # delete the workload's own resources before its namespace
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  ignoreDifferences:
+    # When the HPA owns replica count, Git must not fight it (would flap OutOfSync forever).
+    - group: apps
+      kind: Deployment
+      name: demo-api
+      jsonPointers:
+        - /spec/replicas

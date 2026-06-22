@@ -28,7 +28,7 @@ jobs:
       contents: write  # required to create the GitHub Release
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0  # full history for changelog generation
 
@@ -45,7 +45,7 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.semver.outputs.tag }}
           name: ${{ steps.semver.outputs.tag }}
